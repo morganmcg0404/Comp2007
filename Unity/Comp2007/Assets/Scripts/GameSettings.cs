@@ -5,6 +5,7 @@ using TMPro;
 using System.Collections;
 using System.Collections.Generic;  // Add this for List<T>
 using System.Globalization;
+using UnityEngine.SceneManagement; // Add this for SceneManager
 
 public class GameSettings : MonoBehaviour
 {
@@ -160,10 +161,25 @@ public class GameSettings : MonoBehaviour
             settingsMenuUI.SetActive(false);
             isVisible = false;
             
-            // CRITICAL FIX: Ensure game remains paused
-            // This is needed because some event might be resuming the game
-            Time.timeScale = 0f;
-            PauseManager.SetPaused(true);
+            // Check if we're in the main menu scene
+            bool isMainMenu = SceneManager.GetActiveScene().name == "MainMenu";
+            
+            // Only pause the game if we're NOT in the main menu
+            if (!isMainMenu)
+            {
+                // This is needed because some event might be resuming the game
+                Time.timeScale = 0f;
+                PauseManager.SetPaused(true);
+            }
+            else
+            {
+                // Ensure time is running in the main menu
+                Time.timeScale = 1f;
+                if (PauseManager.IsPaused())
+                {
+                    PauseManager.SetPaused(false);
+                }
+            }
             
             // Trigger the close event to notify PauseMenu
             if (OnSettingsMenuClosed != null)
@@ -211,7 +227,7 @@ public class GameSettings : MonoBehaviour
     {
         // Hide all tabs
         if (gameplayTabContent != null) gameplayTabContent.SetActive(false);
-        if (audioTabContent != null) gameplayTabContent.SetActive(false);
+        if (audioTabContent != null) audioTabContent.SetActive(false);  // FIX: was using gameplayTabContent
         if (graphicsTabContent != null) graphicsTabContent.SetActive(false);
         if (controlsTabContent != null) controlsTabContent.SetActive(false);
         
@@ -284,8 +300,7 @@ public class GameSettings : MonoBehaviour
             if (masterVolumeSlider != null)
             {
                 float masterVolume;
-                // Change "MasterVolume" to the actual exposed parameter name in your AudioMixer
-                if (audioMixer.GetFloat("Master", out masterVolume))
+                if (audioMixer.GetFloat("MasterVolume", out masterVolume))  // Changed from "Master"
                 {
                     masterVolumeSlider.value = Mathf.Pow(10, masterVolume / 20);
                     if (masterVolumeInput != null)
@@ -303,8 +318,7 @@ public class GameSettings : MonoBehaviour
             if (musicVolumeSlider != null)
             {
                 float musicVolume;
-                // Change "MusicVolume" to the actual exposed parameter name in your AudioMixer
-                if (audioMixer.GetFloat("Music", out musicVolume))
+                if (audioMixer.GetFloat("MusicVolume", out musicVolume))  // Changed from "Music"
                 {
                     musicVolumeSlider.value = Mathf.Pow(10, musicVolume / 20);
                     if (musicVolumeInput != null)
@@ -322,8 +336,7 @@ public class GameSettings : MonoBehaviour
             if (sfxVolumeSlider != null)
             {
                 float sfxVolume;
-                // Change "SFXVolume" to the actual exposed parameter name in your AudioMixer
-                if (audioMixer.GetFloat("SFX", out sfxVolume))
+                if (audioMixer.GetFloat("SFXVolume", out sfxVolume))  // Changed from "SFX"
                 {
                     sfxVolumeSlider.value = Mathf.Pow(10, sfxVolume / 20);
                     if (sfxVolumeInput != null)
@@ -446,7 +459,13 @@ public class GameSettings : MonoBehaviour
     private void InitializeControlsSettings()
     {
         if (toggleAimToggle != null)
+        {
             toggleAimToggle.isOn = PlayerPrefs.GetInt("ToggleAim", 0) == 1;
+            
+            // Connect the toggle to our SetToggleAim method
+            toggleAimToggle.onValueChanged.RemoveAllListeners();
+            toggleAimToggle.onValueChanged.AddListener(SetToggleAim);
+        }
     }
     
     // Called when settings panel is opened
@@ -484,22 +503,25 @@ public class GameSettings : MonoBehaviour
         {
             if (masterVolumeSlider != null)
             {
-                float masterVolume = Mathf.Log10(masterVolumeSlider.value) * 20;
-                audioMixer.SetFloat("Master", masterVolume);
+                float masterVolume = masterVolumeSlider.value > 0.001f ? 
+                    Mathf.Log10(masterVolumeSlider.value) * 20 : -80f;
+                audioMixer.SetFloat("MasterVolume", masterVolume);  // Changed from "Master" to "MasterVolume"
                 PlayerPrefs.SetFloat("MasterVolume", masterVolumeSlider.value);
             }
             
             if (musicVolumeSlider != null)
             {
-                float musicVolume = Mathf.Log10(musicVolumeSlider.value) * 20;
-                audioMixer.SetFloat("Music", musicVolume);
+                float musicVolume = musicVolumeSlider.value > 0.001f ? 
+                    Mathf.Log10(musicVolumeSlider.value) * 20 : -80f;
+                audioMixer.SetFloat("MusicVolume", musicVolume);  // Changed from "Music" to "MusicVolume"
                 PlayerPrefs.SetFloat("MusicVolume", musicVolumeSlider.value);
             }
             
             if (sfxVolumeSlider != null)
             {
-                float sfxVolume = Mathf.Log10(sfxVolumeSlider.value) * 20;
-                audioMixer.SetFloat("SFX", sfxVolume);
+                float sfxVolume = sfxVolumeSlider.value > 0.001f ? 
+                    Mathf.Log10(sfxVolumeSlider.value) * 20 : -80f;
+                audioMixer.SetFloat("SFXVolume", sfxVolume);  // Changed from "SFX" to "SFXVolume"
                 PlayerPrefs.SetFloat("SFXVolume", sfxVolumeSlider.value);
             }
         }
@@ -587,14 +609,17 @@ public class GameSettings : MonoBehaviour
         // Rest of your existing code for audio settings...
         if (audioMixer != null)
         {
-            float masterVolume = Mathf.Log10(PlayerPrefs.GetFloat("MasterVolume", 1.0f)) * 20;
-            audioMixer.SetFloat("Master", masterVolume);
+            float masterValue = PlayerPrefs.GetFloat("MasterVolume", 1.0f);
+            float masterVolume = masterValue > 0.001f ? Mathf.Log10(masterValue) * 20 : -80f;
+            audioMixer.SetFloat("MasterVolume", masterVolume);  // Changed from "Master"
             
-            float musicVolume = Mathf.Log10(PlayerPrefs.GetFloat("MusicVolume", 1.0f)) * 20;
-            audioMixer.SetFloat("Music", musicVolume);
+            float musicValue = PlayerPrefs.GetFloat("MusicVolume", 1.0f);
+            float musicVolume = musicValue > 0.001f ? Mathf.Log10(musicValue) * 20 : -80f;
+            audioMixer.SetFloat("MusicVolume", musicVolume);  // Changed from "Music"
             
-            float sfxVolume = Mathf.Log10(PlayerPrefs.GetFloat("SFXVolume", 1.0f)) * 20;
-            audioMixer.SetFloat("SFX", sfxVolume);
+            float sfxValue = PlayerPrefs.GetFloat("SFXVolume", 1.0f);
+            float sfxVolume = sfxValue > 0.001f ? Mathf.Log10(sfxValue) * 20 : -80f;
+            audioMixer.SetFloat("SFXVolume", sfxVolume);  // Changed from "SFX"
         }
     }
     
@@ -604,8 +629,9 @@ public class GameSettings : MonoBehaviour
     {
         if (audioMixer != null)
         {
-            float dbVolume = Mathf.Log10(volume) * 20;
-            audioMixer.SetFloat("Master", dbVolume);
+            // Convert slider value (0-1) to logarithmic scale (-80dB to 0dB)
+            float dbVolume = volume > 0.001f ? Mathf.Log10(volume) * 20 : -80f;
+            audioMixer.SetFloat("MasterVolume", dbVolume);  
             PlayerPrefs.SetFloat("MasterVolume", volume);
         }
     }
@@ -614,8 +640,9 @@ public class GameSettings : MonoBehaviour
     {
         if (audioMixer != null)
         {
-            float dbVolume = Mathf.Log10(volume) * 20;
-            audioMixer.SetFloat("Music", dbVolume);
+            // Convert slider value (0-1) to logarithmic scale (-80dB to 0dB)
+            float dbVolume = volume > 0.001f ? Mathf.Log10(volume) * 20 : -80f;
+            audioMixer.SetFloat("MusicVolume", dbVolume);
             PlayerPrefs.SetFloat("MusicVolume", volume);
         }
     }
@@ -624,8 +651,9 @@ public class GameSettings : MonoBehaviour
     {
         if (audioMixer != null)
         {
-            float dbVolume = Mathf.Log10(volume) * 20;
-            audioMixer.SetFloat("SFX", dbVolume);
+            // Convert slider value (0-1) to logarithmic scale (-80dB to 0dB)
+            float dbVolume = volume > 0.001f ? Mathf.Log10(volume) * 20 : -80f;
+            audioMixer.SetFloat("SFXVolume", dbVolume);
             PlayerPrefs.SetFloat("SFXVolume", volume);
         }
     }
@@ -734,23 +762,7 @@ public class GameSettings : MonoBehaviour
         HUDManager.UpdateHUDVisibility(showHUD);
     }
     
-    // Add this method to your Awake() or Start() to set up input field listeners
-    private void SetupInputFieldListeners()
-    {
-        // Setup gameplay input fields
-        SetupInputField(mouseSensitivityInput, mouseSensitivitySlider, 0.1f, 10.0f);
-        SetupInputField(aimSensitivityInput, aimSensitivitySlider, 0.1f, 10.0f);
-        
-        // Use the new integer input field setup for FOV
-        SetupIntegerInputField(fovInput, fovSlider, 50, 120);
-        
-        // Setup audio input fields
-        SetupInputField(masterVolumeInput, masterVolumeSlider, 0f, 1f);
-        SetupInputField(musicVolumeInput, musicVolumeSlider, 0f, 1f);
-        SetupInputField(sfxVolumeInput, sfxVolumeSlider, 0f, 1f);
-    }
-    
-    // Generic method to setup an input field linked to a slider
+    // Add this method to the GameSettings class to handle input fields for float values
     private void SetupInputField(TMP_InputField inputField, Slider slider, float minValue, float maxValue)
     {
         if (inputField != null && slider != null)
@@ -777,7 +789,88 @@ public class GameSettings : MonoBehaviour
                         // Round to one decimal place
                         value = Mathf.Round(value * 10f) / 10f;
                         
-                        // Update the slider
+                        // Update the slider (this will trigger the onValueChanged event above)
+                        slider.value = value;
+                        
+                        // Update the input field with formatted value
+                        inputField.text = value.ToString("F1", CultureInfo.InvariantCulture);
+                    }
+                    else
+                    {
+                        // Invalid input, reset to current slider value
+                        inputField.text = slider.value.ToString("F1", CultureInfo.InvariantCulture);
+                    }
+                }
+            });
+            
+            // Initialize input field with current slider value
+            inputField.text = slider.value.ToString("F1", CultureInfo.InvariantCulture);
+        }
+    }
+
+    // Add this method to your Awake() or Start() to set up input field listeners
+    private void SetupInputFieldListeners()
+    {
+        // Setup gameplay input fields
+        SetupInputField(mouseSensitivityInput, mouseSensitivitySlider, 0.1f, 10.0f);
+        SetupInputField(aimSensitivityInput, aimSensitivitySlider, 0.1f, 10.0f);
+        
+        // Use the new integer input field setup for FOV
+        SetupIntegerInputField(fovInput, fovSlider, 50, 120);
+        
+        // Setup audio input fields with immediate effect
+        SetupAudioInputField(masterVolumeInput, masterVolumeSlider, 0f, 1f, "MasterVolume", "MasterVolume");
+        SetupAudioInputField(musicVolumeInput, musicVolumeSlider, 0f, 1f, "MusicVolume", "MusicVolume");
+        SetupAudioInputField(sfxVolumeInput, sfxVolumeSlider, 0f, 1f, "SFXVolume", "SFXVolume");
+        
+        // Add onValueChanged listeners to audio sliders for immediate effect
+        if (masterVolumeSlider != null)
+            masterVolumeSlider.onValueChanged.AddListener(SetMasterVolume);
+        
+        if (musicVolumeSlider != null)
+            musicVolumeSlider.onValueChanged.AddListener(SetMusicVolume);
+        
+        if (sfxVolumeSlider != null)
+            sfxVolumeSlider.onValueChanged.AddListener(SetSFXVolume);
+    }
+    
+    // Create a new method specifically for audio input fields
+    private void SetupAudioInputField(TMP_InputField inputField, Slider slider, float minValue, float maxValue, string mixerParam, string prefsKey)
+    {
+        if (inputField != null && slider != null)
+        {
+            // Update input field when slider changes
+            slider.onValueChanged.AddListener((value) => {
+                if (inputField != null)
+                {
+                    // Format to one decimal place
+                    inputField.text = value.ToString("F1", CultureInfo.InvariantCulture);
+                }
+                
+                // Apply volume change immediately
+                if (audioMixer != null)
+                {
+                    // Convert slider value (0-1) to logarithmic scale (-80dB to 0dB)
+                    float dbVolume = value > 0.001f ? Mathf.Log10(value) * 20 : -80f;
+                    audioMixer.SetFloat(mixerParam, dbVolume);
+                    PlayerPrefs.SetFloat(prefsKey, value);
+                }
+            });
+            
+            // Update slider when input field changes
+            inputField.onEndEdit.AddListener((text) => {
+                if (slider != null)
+                {
+                    // Try to parse the input value
+                    if (float.TryParse(text, NumberStyles.Any, CultureInfo.InvariantCulture, out float value))
+                    {
+                        // Clamp the value to the slider's range
+                        value = Mathf.Clamp(value, minValue, maxValue);
+                        
+                        // Round to one decimal place
+                        value = Mathf.Round(value * 10f) / 10f;
+                        
+                        // Update the slider (this will trigger the onValueChanged event above)
                         slider.value = value;
                         
                         // Update the input field with formatted value
@@ -856,6 +949,18 @@ public class GameSettings : MonoBehaviour
             
             // Initialize input field with current slider value as integer
             inputField.text = Mathf.RoundToInt(slider.value).ToString();
+        }
+    }
+
+    public void SetToggleAim(bool toggleAim)
+    {
+        PlayerPrefs.SetInt("ToggleAim", toggleAim ? 1 : 0);
+        
+        // Update all AimDownSights components in the scene
+        AimDownSights[] aimScripts = FindObjectsByType<AimDownSights>(FindObjectsSortMode.None);
+        foreach (AimDownSights aim in aimScripts)
+        {
+            aim.SetToggleMode(toggleAim);
         }
     }
 }

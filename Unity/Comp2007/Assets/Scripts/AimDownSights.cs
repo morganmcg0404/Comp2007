@@ -11,9 +11,6 @@ public class AimDownSights : MonoBehaviour
     [SerializeField] private Vector3 adsPosition = new Vector3(0f, -0.07f, 0.35f); // Position when aiming
     [SerializeField] private Vector3 hipPosition;  // Will be set to initial position
     
-    // Remove unused transition speed fields or use them in a transition method
-    // [SerializeField] private float adsTransitionSpeed = 8f;  // Speed of transition to ADS
-    // [SerializeField] private float hipTransitionSpeed = 6f;  // Speed of transition to hip fire
     
     [Header("FOV Settings")]
     [SerializeField] private float hipFOV = 60f;  // Normal FOV
@@ -85,6 +82,9 @@ public class AimDownSights : MonoBehaviour
             hipFOV = playerCamera.fieldOfView;
             currentFOV = hipFOV;
         }
+
+        // Load toggle aim setting from PlayerPrefs
+        useToggleMode = PlayerPrefs.GetInt("ToggleAim", 0) == 1;
 
         // Get the shoot script component
         shootScript = GetComponent<Shoot>();

@@ -17,6 +17,14 @@ public class ZombieNavigation : MonoBehaviour
     [SerializeField] private bool isSprinter = false; // Whether this zombie is a sprinter
     [SerializeField] private float criticalHealthPercent = 0.1f; // 10% health threshold for slowing down
     
+    [Header("Grounding Settings")]
+    [SerializeField] private bool applyGravity = true;
+    [SerializeField] private float gravityMultiplier = 9.81f; // Standard gravity
+    [SerializeField] private float groundCheckDistance = 0.2f; // How far to check for ground
+    [SerializeField] private LayerMask groundLayer; // Set this in the inspector to your ground layers
+    [SerializeField] private Transform groundCheckPoint; // Reference to a child GameObject at the zombie's feet
+    [SerializeField] private float heightOffset = 0.1f; // How high above the ground to maintain the zombie
+
     [Header("References")]
     [SerializeField] private Animator animator;
     
@@ -33,6 +41,9 @@ public class ZombieNavigation : MonoBehaviour
 
     private Collider playerCollider;
     private bool useClosestPoint = true;
+    
+    private bool isGrounded = true;
+    private float verticalVelocity = 0f;
     
     private void Awake()
     {
@@ -73,6 +84,19 @@ public class ZombieNavigation : MonoBehaviour
             navMeshAgent.stoppingDistance = stoppingDistance;
             navMeshAgent.speed = currentSpeed;
             navMeshAgent.updateRotation = false; // We'll handle rotation manually for smoother turns
+            
+            if (applyGravity)
+            {
+                // Keep the actual NavMesh handling normal
+                navMeshAgent.autoTraverseOffMeshLink = true;
+                
+                // Very important: don't set baseOffset to 0, let the NavMeshAgent use its configured value
+                // This helps prevent sinking into the ground
+                
+                // Additional settings that might help
+                navMeshAgent.obstacleAvoidanceType = ObstacleAvoidanceType.LowQualityObstacleAvoidance;
+                navMeshAgent.avoidancePriority = 50;
+            }
         }
         
         // Set isChasing to true immediately
@@ -95,6 +119,9 @@ public class ZombieNavigation : MonoBehaviour
         
         // Check if health is critically low
         CheckHealthStatus();
+        
+        // Apply gravity and check grounding
+        ApplyGravity();
         
         UpdatePath();
         UpdateRotation();
@@ -311,6 +338,113 @@ public class ZombieNavigation : MonoBehaviour
             
             // Draw line from zombie to target
             Gizmos.DrawLine(transform.position, targetPos);
+        }
+    }
+
+    // Modified ApplyGravity method
+    private void ApplyGravity()
+    {
+        if (!applyGravity || navMeshAgent == null || !navMeshAgent.isActiveAndEnabled)
+            return;
+            
+        // Only apply custom gravity if we're not on a NavMesh
+        if (!navMeshAgent.isOnNavMesh)
+        {
+            // Apply standard gravity
+            verticalVelocity -= gravityMultiplier * Time.deltaTime;
+            transform.position += Vector3.up * verticalVelocity * Time.deltaTime;
+            return;
+        }
+        
+        // Check grounding less frequently to reduce NavMesh interference
+        // Only check every 0.5 seconds or when significantly off the ground
+        if (Time.frameCount % 30 == 0 || !isGrounded) // Roughly every 0.5 sec at 60fps
+        {
+            isGrounded = IsGrounded();
+        }
+        
+        // Reset vertical velocity when on NavMesh
+        if (isGrounded)
+        {
+            verticalVelocity = 0f;
+        }
+    }
+
+    // Modify the IsGrounded method to be less aggressive with position changes
+    private bool IsGrounded()
+    {
+        // Use the ground check point if available, otherwise use transform position
+        Vector3 origin = groundCheckPoint != null ? 
+            groundCheckPoint.position : 
+            transform.position + Vector3.up * 0.5f;
+        
+        Debug.DrawRay(origin, Vector3.down * (groundCheckDistance + 1f), Color.red); // Visualization
+        
+        // Cast a ray downward to check for ground
+        RaycastHit hit;
+        if (Physics.Raycast(origin, Vector3.down, out hit, groundCheckDistance + 1f, groundLayer))
+        {
+            // Calculate desired position
+            float desiredHeightAboveGround = heightOffset;
+            float targetY = hit.point.y + desiredHeightAboveGround;
+            
+            // Only make significant adjustments if really needed (zombie is floating or sinking badly)
+            float heightDifference = Mathf.Abs(transform.position.y - targetY);
+            
+            if (heightDifference > 0.5f) // Only fix severe discrepancies
+            {
+                // Create the new position, maintaining X and Z
+                Vector3 newPosition = new Vector3(
+                    transform.position.x,
+                    targetY,
+                    transform.position.z
+                );
+                
+                // Apply the new position
+                transform.position = newPosition;
+                
+                // Update the NavMeshAgent
+                if (navMeshAgent != null && navMeshAgent.isActiveAndEnabled && navMeshAgent.isOnNavMesh)
+                {
+                    navMeshAgent.Warp(newPosition); // Force immediate NavMesh position update
+                }
+            }
+            // For minor discrepancies, make very gentle adjustments
+            else if (heightDifference > 0.05f) 
+            {
+                // Smoothly adjust height while preserving movement
+                float newY = Mathf.Lerp(transform.position.y, targetY, 0.1f); // Very gradual adjustment
+                
+                Vector3 newPosition = new Vector3(
+                    transform.position.x,
+                    newY,
+                    transform.position.z
+                );
+                
+                // Apply the new position
+                transform.position = newPosition;
+                
+                // Let the NavMeshAgent catch up naturally
+                if (navMeshAgent != null && navMeshAgent.isActiveAndEnabled && navMeshAgent.isOnNavMesh)
+                {
+                    navMeshAgent.nextPosition = transform.position;
+                }
+            }
+            
+            return true;
+        }
+        
+        return false;
+    }
+
+    // Add this method to help with debugging position adjustments
+    public void DebugPosition()
+    {
+        if (navMeshAgent != null && navMeshAgent.isActiveAndEnabled)
+        {
+            Debug.Log($"Zombie {gameObject.name} - On NavMesh: {navMeshAgent.isOnNavMesh}, " +
+                     $"Position: {transform.position}, Agent position: {navMeshAgent.nextPosition}, " +
+                     $"Velocity: {navMeshAgent.velocity.magnitude}, Path pending: {navMeshAgent.pathPending}");
         }
     }
 }

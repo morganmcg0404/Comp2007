@@ -124,7 +124,7 @@ public class PauseMenu : MonoBehaviour
     {
         // Set paused state
         isPaused = true;
-        PauseManager.SetPaused(true); // Add this line
+        PauseManager.SetPaused(true);
         
         // Stop time
         Time.timeScale = 0f;
@@ -143,14 +143,10 @@ public class PauseMenu : MonoBehaviour
             if (settingsPanel != null) settingsPanel.SetActive(false);
             isInSettingsMenu = false;
             
-            // Select the first selectable element (if using keyboard/controller navigation)
+            // Clear selection instead
             if (eventSystem != null)
             {
-                Selectable firstSelectable = mainMenuPanel.GetComponentInChildren<Selectable>();
-                if (firstSelectable != null)
-                {
-                    eventSystem.SetSelectedGameObject(firstSelectable.gameObject);
-                }
+                eventSystem.SetSelectedGameObject(null);
             }
         }
             
@@ -171,7 +167,7 @@ public class PauseMenu : MonoBehaviour
     {
         // Set unpaused state
         isPaused = false;
-        PauseManager.SetPaused(false); // Add this line
+        PauseManager.SetPaused(false);
         
         // Resume time
         Time.timeScale = originalTimeScale;
@@ -303,14 +299,10 @@ public class PauseMenu : MonoBehaviour
         // We're no longer in settings
         isInSettingsMenu = false;
         
-        // Make sure first button is selected for controller input
+        // Clear selection instead
         if (eventSystem != null)
         {
-            Selectable firstSelectable = mainMenuPanel.GetComponentInChildren<Selectable>();
-            if (firstSelectable != null)
-            {
-                eventSystem.SetSelectedGameObject(firstSelectable.gameObject);
-            }
+            eventSystem.SetSelectedGameObject(null);
         }
     }
     

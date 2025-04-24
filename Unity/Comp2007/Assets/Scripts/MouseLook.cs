@@ -34,6 +34,10 @@ public class MouseLook : MonoBehaviour
 
     private void Update()
     {
+        // Skip mouse look if game is paused
+        if (Time.timeScale == 0)
+            return;
+            
         // Calculate look speed based on base speed and sensitivity
         float effectiveLookSpeed = baseLookSpeed * mouseSensitivity;
         
@@ -46,13 +50,21 @@ public class MouseLook : MonoBehaviour
             mouseY = -mouseY;
 
         // Handle looking up and down
-        xRotation -= mouseY;
-        xRotation = Mathf.Clamp(xRotation, -90f, 90f);
+        xRotation -= mouseY; // Subtract to invert axis
+        xRotation = Mathf.Clamp(xRotation, -89f, 89f); // Clamp to slightly less than 90 degrees to prevent distortion
+        
+        // Apply rotation using Quaternion for smoother rotation
         transform.localRotation = Quaternion.Euler(xRotation, 0f, 0f);
         
         // Handle rotation around Y axis (looking left and right)
         playerBody.Rotate(Vector3.up * mouseX);
-
+        
+        // Update camera FOV as needed
+        UpdateCameraFOV();
+    }
+    
+    private void UpdateCameraFOV()
+    {
         // Only maintain FOV if enabled AND no AimDownSights is active
         if (maintainConstantFOV && playerCamera != null)
         {
