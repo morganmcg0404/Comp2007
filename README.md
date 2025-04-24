@@ -92,6 +92,12 @@ Comp2007 is a wave-based roguelike zombie survival first-person shooter (FPS) ga
 
 ---
 
+## Links
+
+- **[Trello Board](https://trello.com/b/zft9nj4d/comp2007-zombie-survival-game)**: Track the project's progress and tasks.
+
+---
+
 ## Credits
 
 - **Developer**: Morgan McGovern
