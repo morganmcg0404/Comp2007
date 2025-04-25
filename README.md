@@ -1,6 +1,6 @@
 # Comp2007: Zombie Survival Game
 
-Comp2007 is a wave-based roguelike zombie survival first-person shooter (FPS) game. Players must survive against increasingly difficult waves of zombies while managing resources, upgrading weapons, and utilizing strategic gameplay to stay alive.
+Comp2007 is a wave-based zombie survival first-person shooter (FPS) game. Players must survive against increasingly difficult waves of zombies while managing resources and utilizing strategic gameplay to stay alive.
 
 ---
 
@@ -8,7 +8,6 @@ Comp2007 is a wave-based roguelike zombie survival first-person shooter (FPS) ga
 
 ### Core Gameplay
 - **Wave-Based Survival**: Fight through endless waves of zombies, with each wave introducing more enemies and tougher challenges.
-- **Roguelike Elements**: Randomized buff cards ensure no two playthroughs are the same.
 - **First-Person Shooter Mechanics**: Engage in fast-paced FPS combat with precise aiming, shooting, and movement.
 
 ### Zombies
@@ -24,7 +23,6 @@ Comp2007 is a wave-based roguelike zombie survival first-person shooter (FPS) ga
 ### Player Mechanics
 - **Aim Down Sights (ADS)**: Toggle or hold to aim down sights for increased accuracy.
 - **Movement Speed Reduction**: Movement speed is reduced while aiming down sights, adding tactical depth.
-- **Buff System**: Every 5 waves, select a buff card to enhance your abilities. Upgrade cards to max level for even greater power.
 - **Resource Management**: Manage ammo, health, and armor to survive longer.
 
 ### User Interface
@@ -51,8 +49,7 @@ Comp2007 is a wave-based roguelike zombie survival first-person shooter (FPS) ga
 ## How to Play
 
 1. **Survive Waves**: Defend yourself against waves of zombies.
-2. **Buffs**: Every 5 waves, select 1 card that gives you a set buff. Once you have 6 cards, you can only upgrade existing cards to max level.
-3. **Adapt**: Use different weapons, strategies, and movement to overcome increasingly difficult waves.
+3. **Adapt**: Use different strategies, and movement to overcome increasingly difficult waves.
 4. **Compete**: Aim for the highest wave and score!
 
 ---
@@ -74,6 +71,8 @@ Comp2007 is a wave-based roguelike zombie survival first-person shooter (FPS) ga
 - **Co-op Multiplayer**: Survive waves with friends.
 - **New Zombie Types**: Introduce special zombies with unique abilities.
 - **Expanded Maps**: Add new environments for players to explore.
+- **Roguelike Elements**: Randomized buff cards ensure no two playthroughs are the same.
+- **Buff System**: Every 5 waves, select a buff card to enhance your abilities. Upgrade cards to max level for even greater power.
 - **Progression System**: Unlock and level new weapons and characters.
 - **Characters**: Characters will have different perks they can unlock, as well as different buffs they can receive in-game.
 
