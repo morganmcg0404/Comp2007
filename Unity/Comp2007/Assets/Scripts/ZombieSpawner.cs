@@ -1,36 +1,88 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// Manages zombie spawn points and handles spawning zombies during waves
+/// Controls spawn positions, spacing, cooldowns, and player proximity detection
+/// </summary>
 public class ZombieSpawner : MonoBehaviour
 {
+    /// <summary>
+    /// Represents a location where zombies can spawn in the game world
+    /// Tracks cooldown times and manages position offsets for multiple zombies
+    /// </summary>
     [System.Serializable]
     public class SpawnPoint
     {
+        /// <summary>
+        /// The physical location in the scene where zombies will spawn
+        /// </summary>
         public Transform location;
+        
+        /// <summary>
+        /// Time when a zombie last spawned from this point
+        /// </summary>
         public float lastSpawnTime = -3f; // Initialize to allow immediate spawn
+        
+        /// <summary>
+        /// Whether this spawn point is ready to spawn another zombie based on cooldown time
+        /// </summary>
         public bool CanSpawn => Time.time - lastSpawnTime >= cooldownTime;
+        
+        /// <summary>
+        /// Time in seconds between spawns from this specific point
+        /// </summary>
         public float cooldownTime = 3f;
+        
+        /// <summary>
+        /// List of currently active zombies that originated from this spawn point
+        /// </summary>
         public List<GameObject> activeZombies = new List<GameObject>(); // Track zombies at this spawn
     }
 
+    /// <summary>
+    /// The prefab of the zombie to spawn
+    /// </summary>
     [Tooltip("The prefab of the zombie to spawn")]
     public GameObject zombiePrefab;
     
+    /// <summary>
+    /// List of all possible spawn points in the level
+    /// </summary>
     [Tooltip("List of spawn points")]
     public List<SpawnPoint> spawnPoints = new List<SpawnPoint>();
     
+    /// <summary>
+    /// Distance in meters within which the player must be for spawning to occur at a point
+    /// </summary>
     [Tooltip("Distance within which player must be for spawning to occur")]
     public float playerDetectionRange = 50f;
     
+    /// <summary>
+    /// Maximum radius in meters for zombie offset around spawn point to prevent overlapping
+    /// </summary>
     [Tooltip("Maximum radius for zombie offset around spawn point")]
     public float maxSpawnOffset = 3f;
     
+    /// <summary>
+    /// Whether to show visual indicators of spawn points in the editor
+    /// </summary>
     [Tooltip("Toggle to show/hide gizmos in the editor")]
     public bool showGizmos = true;
     
+    /// <summary>
+    /// Reference to the player's transform for distance calculations
+    /// </summary>
     private Transform playerTransform;
+    
+    /// <summary>
+    /// Reference to the wave management system for zombie registration
+    /// </summary>
     private WaveManagement waveManager;
     
+    /// <summary>
+    /// Initializes the spawner by finding player and wave manager references
+    /// </summary>
     void Start()
     {
         // Find the player by tag
@@ -132,6 +184,8 @@ public class ZombieSpawner : MonoBehaviour
     /// <summary>
     /// Calculates an offset position for spawning if the spawn point already has zombies
     /// </summary>
+    /// <param name="spawnPoint">The spawn point to calculate an offset from</param>
+    /// <returns>A position near the spawn point that doesn't overlap existing zombies</returns>
     private Vector3 GetOffsetSpawnPosition(SpawnPoint spawnPoint)
     {
         // If no zombies at this spawn yet, use the exact location
@@ -191,7 +245,9 @@ public class ZombieSpawner : MonoBehaviour
         return basePosition + fallbackOffset;
     }
     
-    // For debugging: visualize spawn radius in Scene view
+    /// <summary>
+    /// Visualizes spawn points, player detection range, and maximum offset in the editor
+    /// </summary>
     void OnDrawGizmosSelected()
     {
         // Don't draw anything if gizmos are disabled
@@ -220,8 +276,54 @@ public class ZombieSpawner : MonoBehaviour
     /// <summary>
     /// Enables or disables gizmo visualization
     /// </summary>
+    /// <param name="visible">Whether gizmos should be visible</param>
     public void SetGizmosVisibility(bool visible)
     {
         showGizmos = visible;
+    }
+    
+    /// <summary>
+    /// Retrieves the total number of active zombies across all spawn points
+    /// </summary>
+    /// <returns>Total number of active zombies in the scene</returns>
+    public int GetTotalActiveZombies()
+    {
+        int total = 0;
+        foreach (SpawnPoint point in spawnPoints)
+        {
+            // First clean up any null references
+            point.activeZombies.RemoveAll(z => z == null);
+            // Then count the remaining zombies
+            total += point.activeZombies.Count;
+        }
+        return total;
+    }
+    
+    /// <summary>
+    /// Gets the number of valid spawn points that are currently available
+    /// </summary>
+    /// <returns>Count of spawn points that are off cooldown and have valid locations</returns>
+    public int GetAvailableSpawnPointCount()
+    {
+        int count = 0;
+        foreach (SpawnPoint point in spawnPoints)
+        {
+            if (point.location != null && point.CanSpawn)
+            {
+                count++;
+            }
+        }
+        return count;
+    }
+    
+    /// <summary>
+    /// Resets cooldowns on all spawn points to allow immediate spawning
+    /// </summary>
+    public void ResetAllCooldowns()
+    {
+        foreach (SpawnPoint point in spawnPoints)
+        {
+            point.lastSpawnTime = -3f;
+        }
     }
 }

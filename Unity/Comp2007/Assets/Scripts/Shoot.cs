@@ -2,74 +2,239 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 
+/// <summary>
+/// Handles weapon shooting mechanics including hitscan firing, ammo management,
+/// fire modes, recoil, bullet penetration, and visual effects
+/// </summary>
 public class Shoot : MonoBehaviour
 {
     [Header("Shooting Properties")]
+    /// <summary>
+    /// Transform marking the position and direction where bullets originate
+    /// </summary>
     [SerializeField] private Transform firePoint;
+    
+    /// <summary>
+    /// Maximum distance in units that bullets can travel
+    /// </summary>
     [SerializeField] private float range = 100f;
+    
+    /// <summary>
+    /// Base damage dealt by each bullet hit
+    /// </summary>
     [SerializeField] private float damage = 10f;
+    
+    /// <summary>
+    /// Rate of fire measured in rounds per minute
+    /// </summary>
     [SerializeField] private int roundsPerMinute = 600; // Changed from fireRate to roundsPerMinute
+    
+    /// <summary>
+    /// Layers that bullets can collide with
+    /// </summary>
     [SerializeField] private LayerMask hitLayers;
     
     [Header("Fire Mode Settings")]
+    /// <summary>
+    /// Default firing mode when the weapon is first equipped
+    /// </summary>
     [SerializeField] private FireMode defaultFireMode = FireMode.SemiAuto;
+    
+    /// <summary>
+    /// Whether the player can toggle between fire modes
+    /// </summary>
     [SerializeField] private bool canToggleFireMode = true;  // Enable/disable fire mode toggling
+    
+    /// <summary>
+    /// Key used to switch between fire modes
+    /// </summary>
     [SerializeField] private KeyCode toggleFireModeKey = KeyCode.B;
     
     [Header("Ammunition Settings")]
+    /// <summary>
+    /// Number of rounds in a full magazine
+    /// </summary>
     [SerializeField] private int magazineSize = 30;
+    
+    /// <summary>
+    /// Maximum total ammunition that can be carried including current magazine
+    /// </summary>
     [SerializeField] private int maxAmmo = 150;
+    
+    /// <summary>
+    /// Time in seconds it takes to complete a reload
+    /// </summary>
     [SerializeField] private float reloadTime = 2.0f;
+    
+    /// <summary>
+    /// Key used to manually initiate a reload
+    /// </summary>
     [SerializeField] private KeyCode reloadKey = KeyCode.R;
+    
+    /// <summary>
+    /// Whether the weapon automatically reloads when the magazine is empty
+    /// </summary>
     [SerializeField] private bool autoReloadWhenEmpty = true;
     
     [Header("Effects")]
+    /// <summary>
+    /// Sound played when firing the weapon
+    /// </summary>
     [SerializeField] private AudioSource shootSound;
+    
+    /// <summary>
+    /// Visual particle effect for the muzzle flash when firing
+    /// </summary>
     [SerializeField] private ParticleSystem muzzleFlash;
+    
+    /// <summary>
+    /// Effect spawned at bullet impact points
+    /// </summary>
     [SerializeField] private GameObject hitEffect;
+    
+    /// <summary>
+    /// Line renderer used to draw bullet trails
+    /// </summary>
     [SerializeField] private LineRenderer bulletTrail;
+    
+    /// <summary>
+    /// How long bullet trails remain visible in seconds
+    /// </summary>
     [SerializeField] private float trailDuration = 0.05f;
+    
+    /// <summary>
+    /// Sound played when toggling between fire modes
+    /// </summary>
     [SerializeField] private AudioSource fireModeToggleSound; // Optional sound for mode switching
+    
+    /// <summary>
+    /// Sound played during the reload animation
+    /// </summary>
     [SerializeField] private AudioSource reloadSound; // Optional sound for reloading
+    
+    /// <summary>
+    /// Sound played when trying to shoot with an empty magazine
+    /// </summary>
     [SerializeField] private AudioSource emptyClipSound; // Sound when trying to shoot with empty magazine
     
     [Header("Recoil Settings")]
+    /// <summary>
+    /// Maximum recoil angle in degrees applied when firing
+    /// </summary>
     [SerializeField] private float recoilAmount = 1.0f;     // Maximum recoil angle in degrees
+    
+    /// <summary>
+    /// Speed at which recoil returns to neutral position
+    /// </summary>
     [SerializeField] private float recoilRecoverySpeed = 5.0f;  // How quickly recoil recovers
+    
+    /// <summary>
+    /// Speed at which recoil is applied when firing
+    /// </summary>
     [SerializeField] private float recoilRotationSpeed = 10.0f; // How quickly recoil is applied
+    
+    /// <summary>
+    /// Maximum accumulated recoil angle in degrees
+    /// </summary>
     [SerializeField] private float maxRecoilAngle = 3.0f;   // Maximum accumulated recoil
+    
+    /// <summary>
+    /// Transform to which recoil rotation is applied (typically camera)
+    /// </summary>
     [SerializeField] private Transform recoilTarget; // Assign this in inspector to camera or a parent object
 
     [Header("Penetration Settings")]
+    /// <summary>
+    /// Whether bullets can pass through multiple targets
+    /// </summary>
     [SerializeField] private bool enablePenetration = true;
+    
+    /// <summary>
+    /// Maximum number of targets a bullet can penetrate
+    /// </summary>
     [SerializeField] private int maxPenetration = 3; // Maximum number of enemies a bullet can penetrate
+    
+    /// <summary>
+    /// Percentage damage reduction (0-1) after each penetration
+    /// </summary>
     [SerializeField] private float damageReductionPerHit = 0.3f; // Damage reduction after each penetration (30%)
+    
+    /// <summary>
+    /// Layers that bullets can penetrate (typically enemies)
+    /// </summary>
     [SerializeField] private LayerMask penetrableLayers; // Layers that can be penetrated (typically enemies)
     
-    // Define fire modes
+    /// <summary>
+    /// Defines the available automatic firing modes
+    /// </summary>
     public enum FireMode
     {
+        /// <summary>One shot per trigger pull</summary>
         SemiAuto,
+        
+        /// <summary>Continuous fire while trigger is held</summary>
         FullAuto
     }
     
+    /// <summary>
+    /// Time when the weapon can fire next
+    /// </summary>
     private float nextFireTime = 0f;
+    
+    /// <summary>
+    /// Internal calculation of time between shots in seconds
+    /// </summary>
     private float fireRate; // Keep this as an internal variable for calculations
+    
+    /// <summary>
+    /// Reference to the player's camera
+    /// </summary>
     private Camera playerCamera;
+    
+    /// <summary>
+    /// Current rotation applied by recoil
+    /// </summary>
     private Vector3 currentRotation;
+    
+    /// <summary>
+    /// Target rotation for recoil interpolation
+    /// </summary>
     private Vector3 targetRotation;
+    
+    /// <summary>
+    /// Current firing mode of the weapon
+    /// </summary>
     private FireMode currentFireMode;
     
     // Ammo variables
+    /// <summary>
+    /// Current rounds in the loaded magazine
+    /// </summary>
     private int currentAmmoInMag;
+    
+    /// <summary>
+    /// Current total reserve ammunition
+    /// </summary>
     private int currentTotalAmmo;
+    
+    /// <summary>
+    /// Whether the weapon is currently in the reload animation
+    /// </summary>
     private bool isReloading = false;
 
-    // Add new field to track if this weapon is active
+    /// <summary>
+    /// Whether this weapon is currently the active weapon
+    /// </summary>
     private bool isActiveWeapon = false;
+    
+    /// <summary>
+    /// Reference to the weapon management system
+    /// </summary>
     private WeaponManager weaponManager;
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    /// <summary>
+    /// Initializes weapon references, ammo counts, and firing parameters
+    /// </summary>
     void Start()
     {
         // If no fire point is assigned, use this object's position
@@ -109,7 +274,9 @@ public class Shoot : MonoBehaviour
         UpdateFireRateFromRPM();
     }
     
-    // Added method to convert RPM to fire rate in seconds
+    /// <summary>
+    /// Converts rounds per minute to a fire rate in seconds between shots
+    /// </summary>
     private void UpdateFireRateFromRPM()
     {
         // Calculate seconds per round from rounds per minute
@@ -120,14 +287,19 @@ public class Shoot : MonoBehaviour
         fireRate = 60f / roundsPerMinute;
     }
     
-    // Method to set RPM at runtime (for weapon upgrades, attachments, etc.)
+    /// <summary>
+    /// Sets the weapon's fire rate in rounds per minute
+    /// </summary>
+    /// <param name="rpm">New rate of fire in rounds per minute</param>
     public void SetRoundsPerMinute(int rpm)
     {
         roundsPerMinute = Mathf.Max(1, rpm); // Ensure RPM is at least 1
         UpdateFireRateFromRPM();
     }
     
-    // Update is called once per frame
+    /// <summary>
+    /// Handles weapon input, firing, reloading, and recoil every frame
+    /// </summary>
     void Update()
     {
         // Skip all processing if game is paused
@@ -144,7 +316,7 @@ public class Shoot : MonoBehaviour
         // Skip shooting logic if reloading
         if (isReloading)
             return;
-            
+        
         // Check for reload input
         if (Input.GetKeyDown(reloadKey) && currentAmmoInMag < magazineSize && currentTotalAmmo > 0)
         {
@@ -180,6 +352,9 @@ public class Shoot : MonoBehaviour
         UpdateRecoil();
     }
     
+    /// <summary>
+    /// Attempts to fire the weapon, checking ammo and handling empty magazine cases
+    /// </summary>
     void TryToFire()
     {
         // Check if we have ammo
@@ -207,6 +382,10 @@ public class Shoot : MonoBehaviour
         currentAmmoInMag--;
     }
     
+    /// <summary>
+    /// Coroutine that handles the reload sequence including timing and ammo transfer
+    /// </summary>
+    /// <returns>IEnumerator for coroutine execution</returns>
     IEnumerator Reload()
     {
         // Start reload sequence
@@ -238,6 +417,9 @@ public class Shoot : MonoBehaviour
         isReloading = false;
     }
     
+    /// <summary>
+    /// Toggles between available fire modes and plays feedback sound
+    /// </summary>
     void ToggleFireMode()
     {
         // Switch between fire modes
@@ -253,6 +435,9 @@ public class Shoot : MonoBehaviour
         // You could add UI feedback here, like displaying the current fire mode on screen
     }
     
+    /// <summary>
+    /// Fires a hitscan ray, handles bullet penetration, damage, and visual effects
+    /// </summary>
     void FireHitscan()
     {
         // Set the next time we can fire
@@ -301,7 +486,7 @@ public class Shoot : MonoBehaviour
         while (penetrationsRemaining > 0 && 
                Physics.Raycast(currentOrigin, rayDirection, out hit, range, hitLayers))
         {
-            // Add hit point to our trail - Fix: 'add' to 'Add' (proper capitalization)
+            // Add hit point to our trail
             hitPoints.Add(hit.point);
             lastHitPoint = hit.point;
         
@@ -363,6 +548,11 @@ public class Shoot : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Coroutine that displays bullet trails between all hit points for the specified duration
+    /// </summary>
+    /// <param name="points">List of points in the bullet's path</param>
+    /// <returns>IEnumerator for coroutine execution</returns>
     IEnumerator ShowBulletTrail(List<Vector3> points)
     {
         if (bulletTrail != null)
@@ -381,8 +571,11 @@ public class Shoot : MonoBehaviour
         }
     }
 
-    // Add ammo to the weapon's reserve
-    // Returns the amount of ammo actually added
+    /// <summary>
+    /// Adds ammo to the weapon's reserve supply
+    /// </summary>
+    /// <param name="amount">Amount of ammo to add</param>
+    /// <returns>The actual amount of ammo added</returns>
     public int AddAmmo(int amount)
     {
         // Store original amount to calculate how much was added
@@ -406,6 +599,9 @@ public class Shoot : MonoBehaviour
         return ammoAdded;
     }
     
+    /// <summary>
+    /// Applies recoil effect when firing the weapon
+    /// </summary>
     void ApplyRecoil()
     {
         // Add vertical recoil (kick upward)
@@ -419,6 +615,9 @@ public class Shoot : MonoBehaviour
         targetRotation.y = Mathf.Clamp(targetRotation.y, -maxRecoilAngle, maxRecoilAngle);
     }
     
+    /// <summary>
+    /// Updates recoil recovery and applies current recoil to the camera
+    /// </summary>
     void UpdateRecoil()
     {
         // Only proceed if we have a valid target
@@ -433,7 +632,9 @@ public class Shoot : MonoBehaviour
         recoilTarget.localRotation = Quaternion.Euler(currentRotation.x, currentRotation.y, 0f);
     }
 
-    // Update whether this weapon is currently active
+    /// <summary>
+    /// Updates whether this weapon is currently the active weapon in the weapon manager
+    /// </summary>
     private void UpdateActiveState()
     {
         if (weaponManager != null)
@@ -453,41 +654,64 @@ public class Shoot : MonoBehaviour
         }
     }
     
-    // For UI display or debugging
+    /// <summary>
+    /// Gets the current fire mode as a string for UI display
+    /// </summary>
+    /// <returns>String representation of current fire mode</returns>
     public string GetCurrentFireMode()
     {
         return currentFireMode.ToString();
     }
     
-    // Public getters for UI display
+    /// <summary>
+    /// Gets the current ammunition in the loaded magazine
+    /// </summary>
+    /// <returns>Number of rounds in current magazine</returns>
     public int GetCurrentAmmoInMag()
     {
         return currentAmmoInMag;
     }
     
+    /// <summary>
+    /// Gets the current total reserve ammunition
+    /// </summary>
+    /// <returns>Number of remaining bullets in reserve</returns>
     public int GetCurrentTotalAmmo()
     {
         return currentTotalAmmo;
     }
     
+    /// <summary>
+    /// Checks if the weapon is currently reloading
+    /// </summary>
+    /// <returns>True if currently in reload animation, false otherwise</returns>
     public bool IsReloading()
     {
         return isReloading;
     }
 
-    // Get the maximum ammo this weapon can hold
+    /// <summary>
+    /// Gets the maximum ammunition this weapon can hold
+    /// </summary>
+    /// <returns>Maximum total ammo capacity</returns>
     public int GetMaxAmmo()
     {
         return maxAmmo;
     }
 
-    // Add a new public getter for magazine size
+    /// <summary>
+    /// Gets the magazine capacity of this weapon
+    /// </summary>
+    /// <returns>Number of rounds in a full magazine</returns>
     public int GetMagazineSize()
     {
         return magazineSize;
     }
 
-    // Get rounds per minute for UI display
+    /// <summary>
+    /// Gets the weapon's rate of fire in rounds per minute
+    /// </summary>
+    /// <returns>Fire rate in rounds per minute</returns>
     public int GetRoundsPerMinute()
     {
         return roundsPerMinute;

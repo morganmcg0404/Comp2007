@@ -4,29 +4,71 @@ using TMPro;
 
 /// <summary>
 /// Controls the tab menu that displays player stats when Tab key is pressed
+/// Handles smooth transitions, stats updating, and special states like force-open
 /// </summary>
 public class TabMenu : MonoBehaviour
 {
     [Header("Menu Settings")]
+    /// <summary>
+    /// Key used to open and close the tab menu
+    /// </summary>
     [SerializeField] private KeyCode menuKey = KeyCode.Tab;
+    
+    /// <summary>
+    /// The GameObject containing all menu UI elements
+    /// </summary>
     [SerializeField] private GameObject menuPanel;
+    
+    /// <summary>
+    /// Speed of the fade animation when showing/hiding the menu
+    /// </summary>
     [SerializeField] private float animationSpeed = 5f;
     
     [Header("Player Information")]
+    /// <summary>
+    /// Display name of the player shown in the tab menu
+    /// </summary>
     [SerializeField] private string playerName = "Player 1";
+    
+    /// <summary>
+    /// Text component for displaying player name
+    /// </summary>
     [SerializeField] private TextMeshProUGUI playerNameText;
+    
+    /// <summary>
+    /// Text component for displaying the kill count
+    /// </summary>
     [SerializeField] private TextMeshProUGUI killCountText;
+    
+    /// <summary>
+    /// Text component for displaying the total points earned
+    /// </summary>
     [SerializeField] private TextMeshProUGUI totalPointsText;
     
     // Internal references
+    /// <summary>
+    /// Canvas group component used for smooth fade transitions
+    /// </summary>
     private CanvasGroup canvasGroup;
+    
+    /// <summary>
+    /// Tracks whether the menu is currently visible
+    /// </summary>
     private bool isMenuVisible = false;
+    
+    /// <summary>
+    /// Reference to the point system for retrieving player stats
+    /// </summary>
     private PointSystem pointSystem;
     
-    // Add this variable to track if the menu is forced open
+    /// <summary>
+    /// Indicates if the menu is forced to stay open (e.g., when player dies)
+    /// </summary>
     private bool isForceOpen = false;
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    /// <summary>
+    /// Initializes the tab menu, sets up the canvas group, and configures initial visibility
+    /// </summary>
     void Start()
     {
         // Get or add CanvasGroup component for smooth fade
@@ -57,7 +99,10 @@ public class TabMenu : MonoBehaviour
         }
     }
 
-    // Update is called once per frame
+    /// <summary>
+    /// Checks for input to show/hide the tab menu and updates displayed stats
+    /// Handles special cases like forced menu visibility during pause
+    /// </summary>
     void Update()
     {
         // Skip all input processing if game is paused
@@ -98,7 +143,8 @@ public class TabMenu : MonoBehaviour
     }
     
     /// <summary>
-    /// Shows the tab menu with a smooth fade in
+    /// Shows the tab menu with a smooth fade in animation
+    /// Activates the menu panel and updates stats immediately
     /// </summary>
     private void ShowMenu()
     {
@@ -118,7 +164,8 @@ public class TabMenu : MonoBehaviour
     }
     
     /// <summary>
-    /// Hides the tab menu with a smooth fade out
+    /// Hides the tab menu with a smooth fade out animation
+    /// Disables the menu panel after the animation completes
     /// </summary>
     private void HideMenu()
     {
@@ -135,8 +182,11 @@ public class TabMenu : MonoBehaviour
     }
     
     /// <summary>
-    /// Fades the menu to the target alpha value
+    /// Coroutine that smoothly fades the menu to the target alpha value
     /// </summary>
+    /// <param name="targetAlpha">The target alpha value (0 for invisible, 1 for fully visible)</param>
+    /// <param name="onComplete">Optional callback to execute when the fade completes</param>
+    /// <returns>IEnumerator for coroutine execution</returns>
     private System.Collections.IEnumerator FadeMenu(float targetAlpha, System.Action onComplete = null)
     {
         if (canvasGroup != null)
@@ -164,7 +214,8 @@ public class TabMenu : MonoBehaviour
     }
     
     /// <summary>
-    /// Updates the player stats displayed in the menu
+    /// Updates the player stats displayed in the menu from the point system
+    /// Updates kill count and total points text elements
     /// </summary>
     private void UpdateStats()
     {
@@ -185,8 +236,9 @@ public class TabMenu : MonoBehaviour
     }
     
     /// <summary>
-    /// Sets the player name display
+    /// Sets the player name display in the tab menu
     /// </summary>
+    /// <param name="name">The player name to display</param>
     public void SetPlayerName(string name)
     {
         playerName = name;
@@ -198,7 +250,8 @@ public class TabMenu : MonoBehaviour
     }
     
     /// <summary>
-    /// Forces the menu to open and disables closing
+    /// Forces the menu to open and disables closing via the tab key
+    /// Used for end-game scenarios like player death
     /// </summary>
     public void ForceMenuOpen()
     {

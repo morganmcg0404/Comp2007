@@ -186,11 +186,12 @@ MonoBehaviour:
   stoppingDistance: 1.5
   rotationSpeed: 5
   walkSpeed: 3
+  jogSpeed: 5
   sprintSpeed: 8
   injuredSpeed: 1.5
-  isSprinter: 0
+  zombieType: 0
   criticalHealthPercent: 0.1
-  applyGravity: 1
+  applyGravity: 0
   gravityMultiplier: 9.81
   groundCheckDistance: 0.4
   groundLayer:

@@ -3,7 +3,7 @@ using System.Collections;
 using DG.Tweening;
 
 /// <summary>
-/// Handles aiming down sights functionality for weapons
+/// Handles aiming down sights functionality for weapons with FOV transitions and sensitivity adjustments
 /// </summary>
 public class AimDownSights : MonoBehaviour
 {
@@ -36,7 +36,6 @@ public class AimDownSights : MonoBehaviour
     [SerializeField] private Camera playerCamera;
     [SerializeField] private MouseLook mouseLook;
     [SerializeField] private PlayerMovement playerMovement;
-    [SerializeField] private WeaponCamera weaponCamera;
 
     // Private variables
     private bool isAiming = false;
@@ -48,6 +47,9 @@ public class AimDownSights : MonoBehaviour
     private float currentFOV;
     private float targetSensitivity;
 
+    /// <summary>
+    /// Initializes references that weren't assigned in the inspector
+    /// </summary>
     private void Awake()
     {
         // Initialize references that weren't set in the inspector
@@ -64,6 +66,9 @@ public class AimDownSights : MonoBehaviour
         gunPositioner = GetComponent<GunPositioner>();
     }
 
+    /// <summary>
+    /// Sets up initial positions, sensitivities, and loads saved settings
+    /// </summary>
     private void Start()
     {
         // Store the initial position as the hip position
@@ -90,6 +95,9 @@ public class AimDownSights : MonoBehaviour
         shootScript = GetComponent<Shoot>();
     }
 
+    /// <summary>
+    /// Manages ADS input, state changes, and handles transitions
+    /// </summary>
     private void Update()
     {
         // Skip all processing if game is paused
@@ -170,6 +178,9 @@ public class AimDownSights : MonoBehaviour
         UpdateSensitivity();
     }
 
+    /// <summary>
+    /// Smoothly transitions FOV between hip and ADS states
+    /// </summary>
     private void UpdateFOV()
     {
         if (playerCamera == null) return;
@@ -182,14 +193,11 @@ public class AimDownSights : MonoBehaviour
         
         // Update main camera
         playerCamera.fieldOfView = currentFOV;
-        
-        // Update weapon camera too if it exists
-        if (weaponCamera != null)
-        {
-            weaponCamera.UpdateFOV(currentFOV);
-        }
     }
 
+    /// <summary>
+    /// Smoothly transitions mouse sensitivity between hip and ADS states
+    /// </summary>
     private void UpdateSensitivity()
     {
         if (mouseLook == null) return;
@@ -204,6 +212,9 @@ public class AimDownSights : MonoBehaviour
         mouseLook.SetSensitivity(currentSensitivity);
     }
 
+    /// <summary>
+    /// Transitions the weapon to ADS state with reduced sensitivity and movement speed
+    /// </summary>
     public void EnterADS()
     {
         if (isAiming) return;
@@ -226,6 +237,9 @@ public class AimDownSights : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Transitions the weapon back to hip-fire state, restoring normal sensitivity and movement speed
+    /// </summary>
     public void ExitADS()
     {
         if (!isAiming) return;
@@ -245,6 +259,9 @@ public class AimDownSights : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Toggles between ADS and hip-fire states
+    /// </summary>
     public void ToggleADS()
     {
         if (isAiming)
@@ -253,6 +270,10 @@ public class AimDownSights : MonoBehaviour
             EnterADS();
     }
 
+    /// <summary>
+    /// Determines if this weapon is currently the active weapon
+    /// </summary>
+    /// <returns>True if this weapon is the active weapon</returns>
     private bool IsActiveWeapon()
     {
         if (weaponManager == null) return true;
@@ -265,24 +286,39 @@ public class AimDownSights : MonoBehaviour
         return weaponManager.GetCurrentWeaponObject() == gameObject;
     }
 
+    /// <summary>
+    /// Checks if the player is currently sprinting
+    /// </summary>
+    /// <returns>True if the player is sprinting</returns>
     private bool IsPlayerSprinting()
     {
         if (playerMovement == null) return false;
         return playerMovement.IsSprinting();
     }
 
+    /// <summary>
+    /// Checks if the player is currently on the ground
+    /// </summary>
+    /// <returns>True if the player is grounded</returns>
     private bool IsPlayerGrounded()
     {
         if (playerMovement == null) return true;
         return playerMovement.IsGrounded();
     }
 
-    // Public getters/setters for UI and settings
+    /// <summary>
+    /// Gets the current ADS sensitivity multiplier
+    /// </summary>
+    /// <returns>The ADS sensitivity multiplier</returns>
     public float GetADSSensitivityMultiplier()
     {
         return adsSensitivityMultiplier;
     }
 
+    /// <summary>
+    /// Sets a new ADS sensitivity multiplier and saves it to PlayerPrefs
+    /// </summary>
+    /// <param name="multiplier">The new sensitivity multiplier value</param>
     public void SetADSSensitivityMultiplier(float multiplier)
     {
         adsSensitivityMultiplier = Mathf.Clamp(multiplier, minSensitivityMultiplier, maxSensitivityMultiplier);
@@ -293,6 +329,10 @@ public class AimDownSights : MonoBehaviour
             targetSensitivity = originalSensitivity * adsSensitivityMultiplier;
     }
 
+    /// <summary>
+    /// Sets whether ADS should use toggle or hold mode and saves preference
+    /// </summary>
+    /// <param name="useToggle">True for toggle mode, false for hold mode</param>
     public void SetToggleMode(bool useToggle)
     {
         useToggleMode = useToggle;
@@ -305,6 +345,10 @@ public class AimDownSights : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Returns whether the player is currently aiming down sights
+    /// </summary>
+    /// <returns>True if aiming down sights</returns>
     public bool IsAiming()
     {
         return isAiming;

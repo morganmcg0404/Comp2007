@@ -57,10 +57,24 @@ public class HealthArmourSystem : MonoBehaviour
     private int _displayedMaxHealth;
     private bool _isDead = false;
     
-    // Properties
+    /// <summary>
+    /// Gets the player's current health
+    /// </summary>
     public float CurrentHealth => _currentHealth;
+
+    /// <summary>
+    /// Gets the player's maximum health
+    /// </summary>
     public float MaxHealth => _baseMaxHealth;
+
+    /// <summary>
+    /// Gets the number of active armor plates remaining
+    /// </summary>
     public int ArmourPlatesRemaining => _activeArmourPlates;
+
+    /// <summary>
+    /// Gets the total remaining armor points across all plates
+    /// </summary>
     public float CurrentTotalArmour => GetTotalRemainingArmour();
 
     /// <summary>
@@ -78,7 +92,9 @@ public class HealthArmourSystem : MonoBehaviour
         InitializeArmourPlates();
     }
 
-    // Add this to the Update method, or create it if it doesn't exist
+    /// <summary>
+    /// Checks for player death and handles debug testing
+    /// </summary>
     private void Update()
     {
         // Check for death in case health was set to 0 by another means
@@ -410,6 +426,7 @@ public class HealthArmourSystem : MonoBehaviour
     /// <summary>
     /// Gets the total remaining Armour across all plates
     /// </summary>
+    /// <returns>Total remaining armor value across all plates</returns>
     private float GetTotalRemainingArmour()
     {
         float total = 0f;
@@ -424,6 +441,7 @@ public class HealthArmourSystem : MonoBehaviour
     /// Gets the current value of a specific Armour plate
     /// </summary>
     /// <param name="plateIndex">Index of the Armour plate (0-2)</param>
+    /// <returns>Current health value of the specified armor plate</returns>
     public float GetArmourPlateHealth(int plateIndex)
     {
         if (plateIndex >= 0 && plateIndex < 3)
@@ -436,6 +454,7 @@ public class HealthArmourSystem : MonoBehaviour
     /// <summary>
     /// Gets the maximum health of a single Armour plate
     /// </summary>
+    /// <returns>Maximum possible health value for a single armor plate</returns>
     public float GetMaxArmourPlateHealth()
     {
         return _maxArmourPlateHealth;

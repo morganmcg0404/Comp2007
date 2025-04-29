@@ -3,36 +3,102 @@ using UnityEngine.UI;
 using TMPro;
 using System.Collections.Generic;
 
+/// <summary>
+/// Manages the player's point economy, including earning, spending, and tracking points
+/// Handles purchases of ammo, health, and armor, and provides feedback through UI
+/// Implements a singleton pattern for global access
+/// </summary>
 public class PointSystem : MonoBehaviour
 {
     [Header("Points Configuration")]
+    /// <summary>
+    /// Current point total available to the player
+    /// </summary>
     [SerializeField] private int currentPoints = 500;       // Starting points
+    
+    /// <summary>
+    /// Number of points awarded for each successful enemy hit
+    /// </summary>
     [SerializeField] private int pointsPerHit = 10;         // Points earned per enemy hit
+    
+    /// <summary>
+    /// Number of points awarded for each enemy kill
+    /// </summary>
     [SerializeField] private int pointsPerKill = 100;       // Points earned per enemy kill
+    
+    /// <summary>
+    /// Total number of enemies killed in the current session
+    /// </summary>
     [SerializeField] private int killCount = 0;             // Total enemy kills
 
     [Header("Purchase Costs")]
+    /// <summary>
+    /// Cost in points to purchase ammunition
+    /// </summary>
     [SerializeField] private int ammoCost = 50;             // Cost for ammo purchase
+    
+    /// <summary>
+    /// Cost in points to purchase health restoration
+    /// </summary>
     [SerializeField] private int healCost = 75;             // Cost for health purchase
+    
+    /// <summary>
+    /// Cost in points to purchase an armor plate
+    /// </summary>
     [SerializeField] private int armorPlateCost = 100;      // Cost for armor plate purchase
 
     [Header("UI References")]
+    /// <summary>
+    /// Text component to display current point total
+    /// </summary>
     [SerializeField] private TextMeshProUGUI pointsText;    // Text to display current points
+    
+    /// <summary>
+    /// GameObject containing warning message for failed purchases
+    /// </summary>
     [SerializeField] private GameObject insufficientPointsWarning; // Warning message for insufficient points
+    
+    /// <summary>
+    /// Duration in seconds that the warning message displays
+    /// </summary>
     [SerializeField] private float warningDuration = 2f;    // How long the warning shows
 
     [Header("Audio")]
+    /// <summary>
+    /// Sound played when points are earned
+    /// </summary>
     [SerializeField] private AudioSource pointsEarnedSound;
+    
+    /// <summary>
+    /// Sound played when a purchase is successful
+    /// </summary>
     [SerializeField] private AudioSource purchaseSound;
+    
+    /// <summary>
+    /// Sound played when a purchase fails
+    /// </summary>
     [SerializeField] private AudioSource failedPurchaseSound;
 
     // References to required components
+    /// <summary>
+    /// Reference to the weapon management system
+    /// </summary>
     private WeaponManager weaponManager;
+    
+    /// <summary>
+    /// Reference to the player's health and armor system
+    /// </summary>
     private HealthArmourSystem healthArmourSystem;
 
     // Singleton instance
+    /// <summary>
+    /// Singleton instance for global access to the point system
+    /// </summary>
     public static PointSystem Instance { get; private set; }
 
+    /// <summary>
+    /// Initializes the singleton instance and ensures only one PointSystem exists
+    /// </summary>
     private void Awake()
     {
         // Singleton pattern setup
@@ -47,6 +113,9 @@ public class PointSystem : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Finds required components and initializes the UI on start
+    /// </summary>
     void Start()
     {
         // Find required components
@@ -65,7 +134,7 @@ public class PointSystem : MonoBehaviour
     #region Points Management
 
     /// <summary>
-    /// Called when player hits an enemy with a bullet
+    /// Awards points when player hits an enemy with a bullet
     /// </summary>
     public void EnemyHit()
     {
@@ -73,7 +142,7 @@ public class PointSystem : MonoBehaviour
     }
 
     /// <summary>
-    /// Called when player kills an enemy
+    /// Awards points and increments kill count when player kills an enemy
     /// </summary>
     public void EnemyKilled()
     {
@@ -82,8 +151,9 @@ public class PointSystem : MonoBehaviour
     }
 
     /// <summary>
-    /// Adds specified number of points to player's total
+    /// Adds specified number of points to player's total and updates UI
     /// </summary>
+    /// <param name="amount">Amount of points to add</param>
     public void AddPoints(int amount)
     {
         currentPoints += amount;
@@ -107,16 +177,18 @@ public class PointSystem : MonoBehaviour
     }
 
     /// <summary>
-    /// Returns current points (for external access)
+    /// Returns current points for external access
     /// </summary>
+    /// <returns>The current point total</returns>
     public int GetCurrentPoints()
     {
         return currentPoints;
     }
 
     /// <summary>
-    /// Returns current kill count (for external access)
+    /// Returns current kill count for external access
     /// </summary>
+    /// <returns>The current enemy kill count</returns>
     public int GetKillCount()
     {
         return killCount;
@@ -127,8 +199,9 @@ public class PointSystem : MonoBehaviour
     #region Purchases
 
     /// <summary>
-    /// Purchase ammo for the current weapon
+    /// Attempts to purchase ammo for the current weapon
     /// </summary>
+    /// <returns>True if purchase was successful, false otherwise</returns>
     public bool PurchaseAmmo()
     {
         if (currentPoints >= ammoCost)
@@ -189,14 +262,16 @@ public class PointSystem : MonoBehaviour
         }
         else
         {
-            ShowWarning("Not enough points!");
+            int pointsNeeded = ammoCost - currentPoints;
+            ShowWarning($"Need {pointsNeeded} more points!");
             return false;
         }
     }
 
     /// <summary>
-    /// Purchase health restoration
+    /// Attempts to purchase health restoration for the player
     /// </summary>
+    /// <returns>True if purchase was successful, false otherwise</returns>
     public bool PurchaseHealth()
     {
         if (currentPoints >= healCost)
@@ -242,14 +317,16 @@ public class PointSystem : MonoBehaviour
         }
         else
         {
-            ShowWarning("Not enough points!");
+            int pointsNeeded = healCost - currentPoints;
+            ShowWarning($"Need {pointsNeeded} more points!");
             return false;
         }
     }
 
     /// <summary>
-    /// Purchase an armor plate
+    /// Attempts to purchase an armor plate for the player
     /// </summary>
+    /// <returns>True if purchase was successful, false otherwise</returns>
     public bool PurchaseArmorPlate()
     {
         if (currentPoints >= armorPlateCost)
@@ -285,14 +362,29 @@ public class PointSystem : MonoBehaviour
         }
         else
         {
-            ShowWarning("Not enough points!");
+            int pointsNeeded = armorPlateCost - currentPoints;
+            ShowWarning($"Need {pointsNeeded} more points!");
             return false;
         }
     }
 
+    #endregion
+
+    #region Warning Display
+
     /// <summary>
-    /// Shows a warning message to the player
+    /// Shows a warning message to the player for insufficient points
     /// </summary>
+    /// <param name="message">The warning message to display</param>
+    public void ShowInsufficientPointsWarning(string message)
+    {
+        ShowWarning(message);
+    }
+
+    /// <summary>
+    /// Shows a warning message to the player with the specified text
+    /// </summary>
+    /// <param name="message">The warning message to display</param>
     private void ShowWarning(string message)
     {
         if (insufficientPointsWarning != null)
@@ -339,18 +431,21 @@ public class PointSystem : MonoBehaviour
     #region Helper Methods
 
     /// <summary>
-    /// Get the cost of ammo purchase
+    /// Gets the cost of ammo purchase
     /// </summary>
+    /// <returns>The cost in points to purchase ammo</returns>
     public int GetAmmoCost() => ammoCost;
 
     /// <summary>
-    /// Get the cost of health purchase
+    /// Gets the cost of health purchase
     /// </summary>
+    /// <returns>The cost in points to purchase health</returns>
     public int GetHealthCost() => healCost;
 
     /// <summary>
-    /// Get the cost of armor plate purchase
+    /// Gets the cost of armor plate purchase
     /// </summary>
+    /// <returns>The cost in points to purchase an armor plate</returns>
     public int GetArmorPlateCost() => armorPlateCost;
 
     #endregion

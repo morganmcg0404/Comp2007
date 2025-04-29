@@ -6,102 +6,338 @@ using System.Collections.Generic;
 
 /// <summary>
 /// Basic player movement controller for first person games with sliding
+/// Includes walking, sprinting, crouching, sliding, and stamina management
 /// </summary>
 public class PlayerMovement : MonoBehaviour
 {
     [Header("Component References")]
+    /// <summary>
+    /// Character controller component used for player movement
+    /// </summary>
     public CharacterController controller;
-    public Transform cameraTransform; // Reference to camera to adjust height
+    
+    /// <summary>
+    /// Reference to camera transform to adjust height during crouching/standing
+    /// </summary>
+    public Transform cameraTransform;
 
     [Header("Movement Settings")]
+    /// <summary>
+    /// Base movement speed when walking
+    /// </summary>
     public float walkSpeed = 5f;
+    
+    /// <summary>
+    /// Movement speed when sprinting (consumes stamina)
+    /// </summary>
     public float sprintSpeed = 10f;
+    
+    /// <summary>
+    /// Movement speed when crouching
+    /// </summary>
     public float crouchSpeed = 2.5f;
-    public float speedTransitionRate = 5f; // Controls how quickly speed changes
+    
+    /// <summary>
+    /// Controls how quickly speed changes between states
+    /// </summary>
+    public float speedTransitionRate = 5f;
+    
+    /// <summary>
+    /// How high the player jumps in world units
+    /// </summary>
     public float jumpHeight = 2f;
+    
+    /// <summary>
+    /// Gravity force applied to player (negative value)
+    /// </summary>
     public float gravity = -9.81f;
 
     [Header("Directional Speed Modifiers")]
-    [Range(0.1f, 1.0f)] public float backwardSpeedMultiplier = 0.5f; // 50% speed when moving backward
-    [Range(0.1f, 1.0f)] public float sidewaysSpeedMultiplier = 0.75f; // 75% speed when strafing
+    /// <summary>
+    /// Speed multiplier when moving backward (0.1-1.0)
+    /// </summary>
+    [Range(0.1f, 1.0f)] public float backwardSpeedMultiplier = 0.5f;
+    
+    /// <summary>
+    /// Speed multiplier when strafing sideways (0.1-1.0)
+    /// </summary>
+    [Range(0.1f, 1.0f)] public float sidewaysSpeedMultiplier = 0.75f;
 
     [Header("Crouch Settings")]
+    /// <summary>
+    /// Character controller height when standing
+    /// </summary>
     public float standingHeight = 2f;
+    
+    /// <summary>
+    /// Character controller height when crouching
+    /// </summary>
     public float crouchHeight = 1f;
+    
+    /// <summary>
+    /// How quickly the player transitions between standing and crouching
+    /// </summary>
     public float crouchTransitionSpeed = 10f;
+    
+    /// <summary>
+    /// Camera position when standing (local space)
+    /// </summary>
     public Vector3 standingCameraPosition = new Vector3(0, 0.8f, 0);
+    
+    /// <summary>
+    /// Camera position when crouching (local space)
+    /// </summary>
     public Vector3 crouchingCameraPosition = new Vector3(0, 0.4f, 0);
 
     [Header("Slide Settings")]
-    public float slideForce = 5f; // Initial force of the slide
-    public float slideDuration = 1.0f; // Maximum slide duration in seconds
-    public float slideSpeedThreshold = 7f; // Minimum speed required to slide
-    public float slideControlReduction = 0.5f; // How much control player has while sliding (0-1)
-    public float slideCooldown = 2.0f; // Cooldown period between slides in seconds
+    /// <summary>
+    /// Initial force applied when starting a slide
+    /// </summary>
+    public float slideForce = 5f;
+    
+    /// <summary>
+    /// Maximum slide duration in seconds
+    /// </summary>
+    public float slideDuration = 1.0f;
+    
+    /// <summary>
+    /// Minimum speed required to initiate a slide
+    /// </summary>
+    public float slideSpeedThreshold = 7f;
+    
+    /// <summary>
+    /// How much control player has while sliding (0-1)
+    /// </summary>
+    public float slideControlReduction = 0.5f;
+    
+    /// <summary>
+    /// Cooldown period between slides in seconds
+    /// </summary>
+    public float slideCooldown = 2.0f;
     
     [Header("Stamina Settings")]
+    /// <summary>
+    /// Maximum stamina points
+    /// </summary>
     public float maxStamina = 100f;
-    public float staminaRegenRate = 10f; // Stamina recovered per second
-    public float sprintStaminaDrain = 15f; // Stamina drained per second when sprinting
-    public float slideStaminaCost = 20f; // Stamina cost per slide
-    public float staminaRegenDelay = 1.5f; // Delay before stamina starts regenerating
-    [SerializeField] private Image staminaBar; // Optional UI element
+    
+    /// <summary>
+    /// Rate at which stamina regenerates per second
+    /// </summary>
+    public float staminaRegenRate = 10f;
+    
+    /// <summary>
+    /// Amount of stamina consumed per second while sprinting
+    /// </summary>
+    public float sprintStaminaDrain = 15f;
+    
+    /// <summary>
+    /// One-time stamina cost for performing a slide
+    /// </summary>
+    public float slideStaminaCost = 20f;
+    
+    /// <summary>
+    /// Delay in seconds before stamina begins regenerating after use
+    /// </summary>
+    public float staminaRegenDelay = 1.5f;
+    
+    /// <summary>
+    /// UI element for displaying stamina bar
+    /// </summary>
+    [SerializeField] private Image staminaBar;
+    
+    /// <summary>
+    /// Color for normal stamina levels
+    /// </summary>
     [SerializeField] private Color normalStaminaColor = Color.green;
+    
+    /// <summary>
+    /// Color for low stamina warning
+    /// </summary>
     [SerializeField] private Color lowStaminaColor = Color.red;
+    
+    /// <summary>
+    /// Threshold below which stamina is considered low (displays warning color)
+    /// </summary>
     [SerializeField] private float lowStaminaThreshold = 30f;
 
     [Header("Stamina UI Settings")]
+    /// <summary>
+    /// Duration of stamina bar fill animations
+    /// </summary>
     [SerializeField] private float staminaBarAnimDuration = 0.3f;
+    
+    /// <summary>
+    /// Easing function for stamina bar animations
+    /// </summary>
     [SerializeField] private Ease staminaBarEase = Ease.OutQuad;
+    
+    /// <summary>
+    /// Background element of the stamina bar for delayed animation effect
+    /// </summary>
     [SerializeField] private Image staminaBarBackground;
+
+    /// <summary>
+    /// Reference to the active coroutine for background bar animation
+    /// </summary>
     private Coroutine backgroundBarCoroutine;
 
     [Header("Ground Check")]
+    /// <summary>
+    /// Transform position used for ground detection
+    /// </summary>
     public Transform groundCheck;
+    
+    /// <summary>
+    /// Radius of the ground check sphere cast
+    /// </summary>
     public float groundDistance = 0.4f;
+    
+    /// <summary>
+    /// Layers that count as ground for jumping and movement
+    /// </summary>
     public LayerMask groundMask;
 
     [Header("DOTween Settings")]
+    /// <summary>
+    /// Initial capacity for DOTween animations
+    /// </summary>
     [SerializeField] private int initialTweenCapacity = 1500;
+    
+    /// <summary>
+    /// Maximum capacity for DOTween animations
+    /// </summary>
     [SerializeField] private int maxTweenCapacity = 2000;
 
     // Private variables
+    /// <summary>
+    /// Current vertical velocity vector
+    /// </summary>
     private Vector3 velocity;
+    
+    /// <summary>
+    /// Whether the player is currently touching the ground
+    /// </summary>
     private bool isGrounded;
+    
+    /// <summary>
+    /// Current movement speed after all modifiers
+    /// </summary>
     private float currentSpeed;
+    
+    /// <summary>
+    /// Target speed the player is transitioning toward
+    /// </summary>
     private float targetSpeed;
+    
+    /// <summary>
+    /// Whether the player is currently sprinting
+    /// </summary>
     private bool isSprinting;
+    
+    /// <summary>
+    /// Whether the player is currently crouching
+    /// </summary>
     private bool isCrouching;
+    
+    /// <summary>
+    /// Whether the player is currently sliding
+    /// </summary>
     private bool isSliding;
+    
+    /// <summary>
+    /// Time remaining in the current slide
+    /// </summary>
     private float slideTimer;
+    
+    /// <summary>
+    /// Direction vector for the current slide
+    /// </summary>
     private Vector3 slideDirection;
+    
+    /// <summary>
+    /// Target height the player is transitioning toward
+    /// </summary>
     private float targetHeight;
+    
+    /// <summary>
+    /// Target camera position the player is transitioning toward
+    /// </summary>
     private Vector3 targetCameraPosition;
+    
+    /// <summary>
+    /// Original Y position of the character controller center
+    /// </summary>
     private float originalControllerY;
+    
+    /// <summary>
+    /// Time when the last slide was performed
+    /// </summary>
     private float lastSlideTime = -10f;
+    
+    /// <summary>
+    /// Key used for sprint activation
+    /// </summary>
     private KeyCode sprintKey = KeyCode.LeftShift;
-    private float currentDirectionModifier = 1.0f; // Add this line to fix the error
+    
+    /// <summary>
+    /// Current movement direction modifier based on forward/sideways/backward movement
+    /// </summary>
+    private float currentDirectionModifier = 1.0f;
     
     // Stamina variables
+    /// <summary>
+    /// Current stamina value
+    /// </summary>
     private float currentStamina;
+    
+    /// <summary>
+    /// Time when stamina was last used
+    /// </summary>
     private float lastStaminaUseTime;
+    
+    /// <summary>
+    /// Whether stamina is completely depleted, preventing sprinting until threshold is reached
+    /// </summary>
     private bool staminaDepleted = false;
+    
+    /// <summary>
+    /// Previous fill amount of the stamina bar for animation
+    /// </summary>
     private float previousStaminaFill = 1f;
+    
+    /// <summary>
+    /// Reference to the active stamina bar animation tween
+    /// </summary>
     private Tweener staminaBarTween;
 
-    // Debug UI
+    /// <summary>
+    /// Whether to show debug UI with movement information
+    /// </summary>
     public bool showDebugUI = true;
+    
+    /// <summary>
+    /// Style for debug text display
+    /// </summary>
     private GUIStyle debugTextStyle;
 
-    // Speed modifier for ADS
+    /// <summary>
+    /// Speed modifier applied from external sources like aiming
+    /// </summary>
     private float externalSpeedMultiplier = 1.0f;
 
+    /// <summary>
+    /// Initializes DOTween with appropriate capacity settings
+    /// </summary>
     private void Awake()
     {
         // Initialize DOTween with higher capacity
         DOTween.SetTweensCapacity(initialTweenCapacity, maxTweenCapacity);
     }
     
+    /// <summary>
+    /// Sets up initial movement settings, debug display, and character height
+    /// </summary>
     private void Start()
     {
         // Setup debug text style
@@ -133,6 +369,9 @@ public class PlayerMovement : MonoBehaviour
         UpdateStaminaBar(false);
     }
 
+    /// <summary>
+    /// Handles player movement, jumping, crouching, sliding and stamina management each frame
+    /// </summary>
     private void Update()
     {
         // Ground check - adjust position based on current controller height
@@ -310,7 +549,9 @@ public class PlayerMovement : MonoBehaviour
         UpdateDebugUI(displaySpeed, timeSinceLastSlide);
     }
     
-    // Handle stamina regeneration with proper UI updates
+    /// <summary>
+    /// Handles stamina regeneration with proper UI updates
+    /// </summary>
     private void HandleStaminaRegen()
     {
         // Only regenerate if we haven't used stamina recently
@@ -355,7 +596,9 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
-    // Update method called regularly during regeneration
+    /// <summary>
+    /// Update method called regularly during stamina regeneration to update UI
+    /// </summary>
     private void UpdateStaminaBarForRegen()
     {
         // No need to check for significant changes - just update regularly
@@ -371,7 +614,10 @@ public class PlayerMovement : MonoBehaviour
         }
     }
     
-    // Update the UI stamina bar if assigned
+    /// <summary>
+    /// Updates the UI stamina bar with proper animation and visual feedback
+    /// </summary>
+    /// <param name="animate">Whether to animate the changes or update instantly</param>
     private void UpdateStaminaBar(bool animate = true)
     {
         if (staminaBar == null)
@@ -476,6 +722,12 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Animates the stamina bar background element for smooth transitions
+    /// </summary>
+    /// <param name="startFill">Starting fill amount</param>
+    /// <param name="endFill">Target fill amount</param>
+    /// <param name="duration">Duration of animation in seconds</param>
     private void AnimateStaminaBackground(float startFill, float endFill, float duration)
     {
         // Stop any existing background animation
@@ -488,6 +740,13 @@ public class PlayerMovement : MonoBehaviour
         backgroundBarCoroutine = StartCoroutine(AnimateBackgroundFill(startFill, endFill, duration));
     }
 
+    /// <summary>
+    /// Coroutine that handles the animation of background fill amount
+    /// </summary>
+    /// <param name="startFill">Starting fill amount</param>
+    /// <param name="endFill">Target fill amount</param>
+    /// <param name="duration">Duration of animation in seconds</param>
+    /// <returns>IEnumerator for coroutine execution</returns>
     private IEnumerator AnimateBackgroundFill(float startFill, float endFill, float duration)
     {
         if (staminaBarBackground == null)
@@ -513,6 +772,9 @@ public class PlayerMovement : MonoBehaviour
         backgroundBarCoroutine = null;
     }
 
+    /// <summary>
+    /// Cleans up DOTween animations when component is disabled
+    /// </summary>
     private void OnDisable()
     {
         // Kill any active tweens associated with this component
@@ -536,6 +798,9 @@ public class PlayerMovement : MonoBehaviour
         CancelInvoke("UpdateStaminaBarForRegen");
     }
 
+    /// <summary>
+    /// Ensures proper cleanup of DOTween animations when object is destroyed
+    /// </summary>
     private void OnDestroy()
     {
         // Clean up any remaining tweens
@@ -555,7 +820,10 @@ public class PlayerMovement : MonoBehaviour
         }
     }
     
-    // Use stamina and track when it was last used
+    /// <summary>
+    /// Consumes stamina and updates the timestamp of last usage
+    /// </summary>
+    /// <param name="amount">Amount of stamina to consume</param>
     private void UseStamina(float amount)
     {
         currentStamina = Mathf.Max(0, currentStamina - amount);
@@ -563,6 +831,10 @@ public class PlayerMovement : MonoBehaviour
         UpdateStaminaBar();
     }
     
+    /// <summary>
+    /// Initiates a slide in the specified movement direction
+    /// </summary>
+    /// <param name="moveDirection">Direction vector for the slide</param>
     private void StartSlide(Vector3 moveDirection)
     {
         if (moveDirection.magnitude < 0.1f)
@@ -586,6 +858,10 @@ public class PlayerMovement : MonoBehaviour
         isSprinting = false;
     }
     
+    /// <summary>
+    /// Manages active sliding state including speed reduction over time
+    /// </summary>
+    /// <param name="moveDirection">Current movement input direction</param>
     private void HandleSliding(Vector3 moveDirection)
     {
         if (!isSliding)
@@ -610,6 +886,9 @@ public class PlayerMovement : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Ends the sliding state and applies cooldown
+    /// </summary>
     private void EndSlide()
     {
         if (!isSliding)
@@ -631,6 +910,9 @@ public class PlayerMovement : MonoBehaviour
         targetSpeed = isCrouching ? crouchSpeed : walkSpeed;
     }
     
+    /// <summary>
+    /// Toggles between crouching and standing states
+    /// </summary>
     private void ToggleCrouch()
     {
         isCrouching = !isCrouching;
@@ -640,6 +922,9 @@ public class PlayerMovement : MonoBehaviour
         targetCameraPosition = isCrouching ? crouchingCameraPosition : standingCameraPosition;
     }
     
+    /// <summary>
+    /// Updates the character controller height and camera position for smooth crouching transitions
+    /// </summary>
     private void UpdateCrouchState()
     {
         // Smoothly adjust controller height
@@ -661,6 +946,11 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Updates the debug information displayed on screen
+    /// </summary>
+    /// <param name="displaySpeed">Current measured movement speed</param>
+    /// <param name="timeSinceLastSlide">Time elapsed since last slide</param>
     private void UpdateDebugUI(float displaySpeed, float timeSinceLastSlide)
     {
         if (!showDebugUI)
@@ -714,13 +1004,16 @@ public class PlayerMovement : MonoBehaviour
         };
     }
     
+    /// <summary>
+    /// Structure to hold debug information for display
+    /// </summary>
     private struct DebugInfo
     {
         public float speed;
         public float targetSpeed;
-        public float baseSpeed; // Rename to make it clearer this is pre-modifier
-        public float effectiveSpeed; // New field showing speed with modifier applied
-        public float directionModifier; // New field
+        public float baseSpeed;
+        public float effectiveSpeed;
+        public float directionModifier;
         public bool isCrouching;
         public bool isSprinting;
         public bool isSliding;
@@ -739,9 +1032,14 @@ public class PlayerMovement : MonoBehaviour
         public float timeSinceStaminaUse;
     }
     
+    /// <summary>
+    /// Current debug information for display
+    /// </summary>
     private DebugInfo debugInfo;
 
-    // Debug UI to show current speed and state
+    /// <summary>
+    /// Displays debug information on screen when enabled
+    /// </summary>
     private void OnGUI()
     {
         if (showDebugUI)
@@ -761,7 +1059,7 @@ public class PlayerMovement : MonoBehaviour
             string cooldownText = debugInfo.canSlideNow ? "Ready" : $"{debugInfo.slideCooldownRemaining:F1}s";
             string speedText = $"Speed: {debugInfo.speed:F2} units/s ({stateText})";
             string transitionText = $"Current/Target Speed: {debugInfo.baseSpeed:F2}/{debugInfo.targetSpeed:F2}";
-            string effectiveSpeedText = $"Effective Speed: {debugInfo.effectiveSpeed:F2} units/s"; // New line
+            string effectiveSpeedText = $"Effective Speed: {debugInfo.effectiveSpeed:F2} units/s";
             string stateDetails = debugInfo.isSliding 
                 ? $" | Slide Time: {debugInfo.slideTimeRemaining:F2}s" 
                 : $" | Slide Cooldown: {cooldownText}";
@@ -791,32 +1089,55 @@ public class PlayerMovement : MonoBehaviour
         }
     }
     
-    // For any script that needs to check stamina status
+    /// <summary>
+    /// Returns the current stamina value
+    /// </summary>
+    /// <returns>Current stamina points</returns>
     public float GetCurrentStamina()
     {
         return currentStamina;
     }
     
+    /// <summary>
+    /// Returns the maximum stamina value
+    /// </summary>
+    /// <returns>Maximum stamina points</returns>
     public float GetMaxStamina()
     {
         return maxStamina;
     }
     
+    /// <summary>
+    /// Checks if player's stamina is fully depleted
+    /// </summary>
+    /// <returns>True if stamina is depleted, false otherwise</returns>
     public bool IsStaminaDepleted()
     {
         return staminaDepleted;
     }
 
+    /// <summary>
+    /// Sets an external speed multiplier (used for aiming down sights, etc.)
+    /// </summary>
+    /// <param name="multiplier">Speed multiplier between 0 and 1</param>
     public void SetSpeedMultiplier(float multiplier)
     {
         externalSpeedMultiplier = Mathf.Clamp01(multiplier);
     }
 
+    /// <summary>
+    /// Checks if the player is currently sprinting
+    /// </summary>
+    /// <returns>True if sprinting, false otherwise</returns>
     public bool IsSprinting()
     {
         return isSprinting;
     }
 
+    /// <summary>
+    /// Checks if the player is currently on the ground
+    /// </summary>
+    /// <returns>True if grounded, false otherwise</returns>
     public bool IsGrounded()
     {
         return isGrounded;

@@ -3,10 +3,14 @@ using UnityEngine.UI;
 using UnityEngine.Audio;
 using TMPro;
 using System.Collections;
-using System.Collections.Generic;  // Add this for List<T>
+using System.Collections.Generic;
 using System.Globalization;
-using UnityEngine.SceneManagement; // Add this for SceneManager
+using UnityEngine.SceneManagement;
 
+/// <summary>
+/// Manages game settings including audio, graphics, gameplay, and control options
+/// Provides a UI-based settings menu with tab navigation and persistence via PlayerPrefs
+/// </summary>
 public class GameSettings : MonoBehaviour
 {
     [Header("UI Components")]
@@ -39,39 +43,45 @@ public class GameSettings : MonoBehaviour
     [SerializeField] private TMP_InputField sfxVolumeInput;
     
     [Header("Graphics Settings")]
-    [SerializeField] private TMP_Dropdown fullscreenDropdown;  // Changed from Toggle to TMP_Dropdown
-    [SerializeField] private TMP_Dropdown qualityDropdown;  // Changed from Dropdown to TMP_Dropdown
-    [SerializeField] private TMP_Dropdown resolutionDropdown;  // Changed from Dropdown to TMP_Dropdown
+    [SerializeField] private TMP_Dropdown fullscreenDropdown;
+    [SerializeField] private TMP_Dropdown qualityDropdown;
+    [SerializeField] private TMP_Dropdown resolutionDropdown;
     
     [Header("Gameplay Settings")]
-    [SerializeField] private Slider mouseSensitivitySlider;      // Look sensitivity
+    [SerializeField] private Slider mouseSensitivitySlider;
     [SerializeField] private TMP_InputField mouseSensitivityInput;
-    [SerializeField] private Slider aimSensitivitySlider;        // ADS sensitivity
+    [SerializeField] private Slider aimSensitivitySlider;
     [SerializeField] private TMP_InputField aimSensitivityInput;
-    [SerializeField] private Slider fovSlider;                   // Field of View slider
+    [SerializeField] private Slider fovSlider;
     [SerializeField] private TMP_InputField fovInput;
-    [SerializeField] private Toggle invertYToggle;               // Invert Y axis
-    [SerializeField] private Toggle showFPSToggle;               // Show FPS counter
-    [SerializeField] private FPSCounter fpsCounter;              // Reference to the FPS counter object
-    [SerializeField] private Toggle showHUDToggle;               // Show HUD elements
+    [SerializeField] private Toggle invertYToggle;
+    [SerializeField] private Toggle showFPSToggle;
+    [SerializeField] private FPSCounter fpsCounter;
+    [SerializeField] private Toggle showHUDToggle;
     
     [Header("Controls Settings")]
     [SerializeField] private Toggle toggleAimToggle;
     
     [Header("Settings Storage")]
     [SerializeField] private bool loadOnAwake = true;
-    [SerializeField] private bool hideOnAwake = true;            // Whether to hide the menu when the game starts
+    [SerializeField] private bool hideOnAwake = true;
     
     // Theme colors for selected/unselected tabs
     [SerializeField] private Color selectedTabColor = new Color(1f, 1f, 1f, 1f);
     [SerializeField] private Color unselectedTabColor = new Color(0.7f, 0.7f, 0.7f, 1f);
     
-    // Events
-    public System.Action OnSettingsMenuClosed;                   // Event triggered when settings menu is closed
+    /// <summary>
+    /// Event triggered when the settings menu is closed
+    /// Useful for notifying other systems (like PauseMenu) to update their state
+    /// </summary>
+    public System.Action OnSettingsMenuClosed;
     
     private Resolution[] resolutions;
     private bool isVisible = false;
     
+    /// <summary>
+    /// Initializes the settings menu, sets up UI listeners, and loads saved settings
+    /// </summary>
     private void Awake()
     {
         // Setup tab button listeners
@@ -97,6 +107,9 @@ public class GameSettings : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Handles user input to close the settings menu when the back key is pressed
+    /// </summary>
     private void Update()
     {
         // Check for Escape key press to close settings
@@ -106,6 +119,9 @@ public class GameSettings : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Configures tab button click listeners for tab navigation
+    /// </summary>
     private void SetupTabButtons()
     {
         if (gameplayTabButton != null)
@@ -123,6 +139,9 @@ public class GameSettings : MonoBehaviour
     
     #region Menu Visibility Control
     
+    /// <summary>
+    /// Shows the settings menu and initializes UI elements with current values
+    /// </summary>
     public void ShowSettingsMenu()
     {
         if (settingsMenuUI != null)
@@ -150,6 +169,9 @@ public class GameSettings : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Closes the settings menu, saves all settings, and restores appropriate time scale
+    /// </summary>
     public void CloseSettingsMenu()
     {
         if (settingsMenuUI != null)
@@ -187,12 +209,18 @@ public class GameSettings : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Gets whether the settings menu is currently visible
+    /// </summary>
+    /// <returns>True if the settings menu is visible, false otherwise</returns>
     public bool IsVisible()
     {
         return isVisible;
     }
     
-    // Toggle visibility of the settings menu
+    /// <summary>
+    /// Toggles the visibility of the settings menu
+    /// </summary>
     public void ToggleSettingsMenu()
     {
         if (isVisible)
@@ -203,31 +231,48 @@ public class GameSettings : MonoBehaviour
     
     #endregion
     
+    /// <summary>
+    /// Shows the gameplay settings tab and hides other tabs
+    /// </summary>
     public void ShowGameplayTab()
     {
         SetActiveTab(gameplayTabContent, gameplayTabButton);
     }
     
+    /// <summary>
+    /// Shows the audio settings tab and hides other tabs
+    /// </summary>
     public void ShowAudioTab()
     {
         SetActiveTab(audioTabContent, audioTabButton);
     }
     
+    /// <summary>
+    /// Shows the graphics settings tab and hides other tabs
+    /// </summary>
     public void ShowGraphicsTab()
     {
         SetActiveTab(graphicsTabContent, graphicsTabButton);
     }
     
+    /// <summary>
+    /// Shows the controls settings tab and hides other tabs
+    /// </summary>
     public void ShowControlsTab()
     {
         SetActiveTab(controlsTabContent, controlsTabButton);
     }
     
+    /// <summary>
+    /// Activates the specified tab and updates UI to show it as selected
+    /// </summary>
+    /// <param name="activeTab">The tab content to show</param>
+    /// <param name="activeButton">The tab button to mark as selected</param>
     private void SetActiveTab(GameObject activeTab, Button activeButton)
     {
         // Hide all tabs
         if (gameplayTabContent != null) gameplayTabContent.SetActive(false);
-        if (audioTabContent != null) audioTabContent.SetActive(false);  // FIX: was using gameplayTabContent
+        if (audioTabContent != null) audioTabContent.SetActive(false);
         if (graphicsTabContent != null) graphicsTabContent.SetActive(false);
         if (controlsTabContent != null) controlsTabContent.SetActive(false);
         
@@ -246,6 +291,9 @@ public class GameSettings : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Resets all tab buttons to their unselected color state
+    /// </summary>
     private void ResetTabButtonColors()
     {
         SetButtonColor(gameplayTabButton, unselectedTabColor);
@@ -254,6 +302,11 @@ public class GameSettings : MonoBehaviour
         SetButtonColor(controlsTabButton, unselectedTabColor);
     }
     
+    /// <summary>
+    /// Sets the color of a button's ColorBlock
+    /// </summary>
+    /// <param name="button">The button to modify</param>
+    /// <param name="color">The color to apply</param>
     private void SetButtonColor(Button button, Color color)
     {
         if (button != null)
@@ -264,6 +317,9 @@ public class GameSettings : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Initializes all UI elements with current settings values
+    /// </summary>
     public void InitializeUI()
     {
         // Initialize various UI elements...
@@ -276,21 +332,16 @@ public class GameSettings : MonoBehaviour
             fovSlider.value = PlayerPrefs.GetFloat("FOV", 60f);
         }
         
-        // Other initialization code...
-        
-        // Audio Settings
+        // Initialize settings by category
         InitializeAudioSettings();
-        
-        // Graphics Settings
         InitializeGraphicsSettings();
-        
-        // Gameplay Settings
         InitializeGameplaySettings();
-        
-        // Controls Settings
         InitializeControlsSettings();
     }
     
+    /// <summary>
+    /// Initializes audio-related UI elements with current saved values
+    /// </summary>
     private void InitializeAudioSettings()
     {
         // Setup audio sliders
@@ -300,7 +351,7 @@ public class GameSettings : MonoBehaviour
             if (masterVolumeSlider != null)
             {
                 float masterVolume;
-                if (audioMixer.GetFloat("MasterVolume", out masterVolume))  // Changed from "Master"
+                if (audioMixer.GetFloat("MasterVolume", out masterVolume))
                 {
                     masterVolumeSlider.value = Mathf.Pow(10, masterVolume / 20);
                     if (masterVolumeInput != null)
@@ -318,7 +369,7 @@ public class GameSettings : MonoBehaviour
             if (musicVolumeSlider != null)
             {
                 float musicVolume;
-                if (audioMixer.GetFloat("MusicVolume", out musicVolume))  // Changed from "Music"
+                if (audioMixer.GetFloat("MusicVolume", out musicVolume))
                 {
                     musicVolumeSlider.value = Mathf.Pow(10, musicVolume / 20);
                     if (musicVolumeInput != null)
@@ -336,7 +387,7 @@ public class GameSettings : MonoBehaviour
             if (sfxVolumeSlider != null)
             {
                 float sfxVolume;
-                if (audioMixer.GetFloat("SFXVolume", out sfxVolume))  // Changed from "SFX"
+                if (audioMixer.GetFloat("SFXVolume", out sfxVolume))
                 {
                     sfxVolumeSlider.value = Mathf.Pow(10, sfxVolume / 20);
                     if (sfxVolumeInput != null)
@@ -352,6 +403,9 @@ public class GameSettings : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Initializes graphics-related UI elements with current saved values
+    /// </summary>
     private void InitializeGraphicsSettings()
     {
         // Setup resolution dropdown
@@ -422,6 +476,9 @@ public class GameSettings : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Initializes gameplay-related UI elements with current saved values
+    /// </summary>
     private void InitializeGameplaySettings()
     {
         if (mouseSensitivitySlider != null)
@@ -445,7 +502,6 @@ public class GameSettings : MonoBehaviour
                 fovInput.text = Mathf.RoundToInt(fovSlider.value).ToString(); // Changed to integer
         }
         
-        // Rest of your existing code
         if (invertYToggle != null)
             invertYToggle.isOn = PlayerPrefs.GetInt("InvertY", 0) == 1;
             
@@ -456,6 +512,9 @@ public class GameSettings : MonoBehaviour
             showHUDToggle.isOn = PlayerPrefs.GetInt("ShowHUD", 1) == 1;
     }
     
+    /// <summary>
+    /// Initializes controls-related UI elements with current saved values
+    /// </summary>
     private void InitializeControlsSettings()
     {
         if (toggleAimToggle != null)
@@ -468,7 +527,9 @@ public class GameSettings : MonoBehaviour
         }
     }
     
-    // Called when settings panel is opened
+    /// <summary>
+    /// Refreshes UI with current values when settings panel is opened
+    /// </summary>
     public void OnSettingsOpened()
     {
         // Refresh UI with current values
@@ -478,7 +539,9 @@ public class GameSettings : MonoBehaviour
         ShowGameplayTab();
     }
     
-    // Save all settings
+    /// <summary>
+    /// Saves all settings to PlayerPrefs
+    /// </summary>
     public void SaveSettings()
     {
         // Save audio settings
@@ -497,6 +560,9 @@ public class GameSettings : MonoBehaviour
         PlayerPrefs.Save();
     }
     
+    /// <summary>
+    /// Saves audio settings to PlayerPrefs and applies them to the audio mixer
+    /// </summary>
     private void SaveAudioSettings()
     {
         if (audioMixer != null)
@@ -505,7 +571,7 @@ public class GameSettings : MonoBehaviour
             {
                 float masterVolume = masterVolumeSlider.value > 0.001f ? 
                     Mathf.Log10(masterVolumeSlider.value) * 20 : -80f;
-                audioMixer.SetFloat("MasterVolume", masterVolume);  // Changed from "Master" to "MasterVolume"
+                audioMixer.SetFloat("MasterVolume", masterVolume);
                 PlayerPrefs.SetFloat("MasterVolume", masterVolumeSlider.value);
             }
             
@@ -513,7 +579,7 @@ public class GameSettings : MonoBehaviour
             {
                 float musicVolume = musicVolumeSlider.value > 0.001f ? 
                     Mathf.Log10(musicVolumeSlider.value) * 20 : -80f;
-                audioMixer.SetFloat("MusicVolume", musicVolume);  // Changed from "Music" to "MusicVolume"
+                audioMixer.SetFloat("MusicVolume", musicVolume);
                 PlayerPrefs.SetFloat("MusicVolume", musicVolumeSlider.value);
             }
             
@@ -521,12 +587,15 @@ public class GameSettings : MonoBehaviour
             {
                 float sfxVolume = sfxVolumeSlider.value > 0.001f ? 
                     Mathf.Log10(sfxVolumeSlider.value) * 20 : -80f;
-                audioMixer.SetFloat("SFXVolume", sfxVolume);  // Changed from "SFX" to "SFXVolume"
+                audioMixer.SetFloat("SFXVolume", sfxVolume);
                 PlayerPrefs.SetFloat("SFXVolume", sfxVolumeSlider.value);
             }
         }
     }
     
+    /// <summary>
+    /// Saves graphics settings to PlayerPrefs and applies them to the game
+    /// </summary>
     private void SaveGraphicsSettings()
     {
         // Save resolution using our new method
@@ -549,6 +618,9 @@ public class GameSettings : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Saves gameplay settings to PlayerPrefs
+    /// </summary>
     private void SaveGameplaySettings()
     {
         if (mouseSensitivitySlider != null)
@@ -570,13 +642,18 @@ public class GameSettings : MonoBehaviour
             PlayerPrefs.SetInt("ShowHUD", showHUDToggle.isOn ? 1 : 0);
     }
     
+    /// <summary>
+    /// Saves controls settings to PlayerPrefs
+    /// </summary>
     private void SaveControlsSettings()
     {
         if (toggleAimToggle != null)
             PlayerPrefs.SetInt("ToggleAim", toggleAimToggle.isOn ? 1 : 0);
     }
     
-    // Load all settings
+    /// <summary>
+    /// Loads all settings from PlayerPrefs and applies them
+    /// </summary>
     public void LoadSettings()
     {
         // Load quality
@@ -606,36 +683,44 @@ public class GameSettings : MonoBehaviour
         // Apply resolution with the correct screen mode
         Screen.SetResolution(width, height, fullScreenMode);
         
-        // Rest of your existing code for audio settings...
+        // Load audio settings
         if (audioMixer != null)
         {
             float masterValue = PlayerPrefs.GetFloat("MasterVolume", 1.0f);
             float masterVolume = masterValue > 0.001f ? Mathf.Log10(masterValue) * 20 : -80f;
-            audioMixer.SetFloat("MasterVolume", masterVolume);  // Changed from "Master"
+            audioMixer.SetFloat("MasterVolume", masterVolume);
             
             float musicValue = PlayerPrefs.GetFloat("MusicVolume", 1.0f);
             float musicVolume = musicValue > 0.001f ? Mathf.Log10(musicValue) * 20 : -80f;
-            audioMixer.SetFloat("MusicVolume", musicVolume);  // Changed from "Music"
+            audioMixer.SetFloat("MusicVolume", musicVolume);
             
             float sfxValue = PlayerPrefs.GetFloat("SFXVolume", 1.0f);
             float sfxVolume = sfxValue > 0.001f ? Mathf.Log10(sfxValue) * 20 : -80f;
-            audioMixer.SetFloat("SFXVolume", sfxVolume);  // Changed from "SFX"
+            audioMixer.SetFloat("SFXVolume", sfxVolume);
         }
     }
     
-    // UI Callbacks for direct slider/toggle connections
+    #region UI Callbacks
     
+    /// <summary>
+    /// Sets the master volume level and applies it to the audio mixer
+    /// </summary>
+    /// <param name="volume">Volume level from 0 to 1</param>
     public void SetMasterVolume(float volume)
     {
         if (audioMixer != null)
         {
             // Convert slider value (0-1) to logarithmic scale (-80dB to 0dB)
             float dbVolume = volume > 0.001f ? Mathf.Log10(volume) * 20 : -80f;
-            audioMixer.SetFloat("MasterVolume", dbVolume);  
+            audioMixer.SetFloat("MasterVolume", dbVolume);
             PlayerPrefs.SetFloat("MasterVolume", volume);
         }
     }
     
+    /// <summary>
+    /// Sets the music volume level and applies it to the audio mixer
+    /// </summary>
+    /// <param name="volume">Volume level from 0 to 1</param>
     public void SetMusicVolume(float volume)
     {
         if (audioMixer != null)
@@ -647,6 +732,10 @@ public class GameSettings : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Sets the sound effects volume level and applies it to the audio mixer
+    /// </summary>
+    /// <param name="volume">Volume level from 0 to 1</param>
     public void SetSFXVolume(float volume)
     {
         if (audioMixer != null)
@@ -658,12 +747,20 @@ public class GameSettings : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Sets the quality level preset
+    /// </summary>
+    /// <param name="qualityIndex">Index of the quality preset to use</param>
     public void SetQuality(int qualityIndex)
     {
         QualitySettings.SetQualityLevel(qualityIndex);
         PlayerPrefs.SetInt("QualityLevel", qualityIndex);
     }
     
+    /// <summary>
+    /// Sets the window mode (fullscreen, borderless, or windowed)
+    /// </summary>
+    /// <param name="windowModeIndex">Window mode index: 0=Fullscreen, 1=Borderless, 2=Windowed</param>
     public void SetWindowMode(int windowModeIndex)
     {
         // 0 = Fullscreen, 1 = Borderless Windowed, 2 = Windowed
@@ -687,6 +784,10 @@ public class GameSettings : MonoBehaviour
         PlayerPrefs.SetInt("WindowMode", windowModeIndex);
     }
     
+    /// <summary>
+    /// Sets the mouse sensitivity and updates all MouseLook components
+    /// </summary>
+    /// <param name="sensitivity">The new sensitivity value</param>
     public void SetMouseSensitivity(float sensitivity)
     {
         PlayerPrefs.SetFloat("MouseSensitivity", sensitivity);
@@ -699,6 +800,10 @@ public class GameSettings : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Sets the aim-down-sights sensitivity multiplier and updates all AimDownSights components
+    /// </summary>
+    /// <param name="sensitivity">The new ADS sensitivity multiplier</param>
     public void SetAimSensitivity(float sensitivity)
     {
         PlayerPrefs.SetFloat("AimSensitivity", sensitivity);
@@ -711,6 +816,10 @@ public class GameSettings : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Sets the field of view angle and updates all MouseLook components
+    /// </summary>
+    /// <param name="fov">The new FOV value in degrees</param>
     public void SetFOV(float fov)
     {
         // Round to integer before clamping and saving
@@ -727,6 +836,10 @@ public class GameSettings : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Sets whether vertical mouse input should be inverted
+    /// </summary>
+    /// <param name="invert">True to invert Y axis, false for normal controls</param>
     public void SetInvertY(bool invert)
     {
         PlayerPrefs.SetInt("InvertY", invert ? 1 : 0);
@@ -739,6 +852,10 @@ public class GameSettings : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Sets whether the FPS counter should be displayed
+    /// </summary>
+    /// <param name="showFPS">True to show FPS counter, false to hide it</param>
     public void SetShowFPS(bool showFPS)
     {
         PlayerPrefs.SetInt("ShowFPS", showFPS ? 1 : 0);
@@ -754,6 +871,10 @@ public class GameSettings : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Sets whether HUD elements should be displayed
+    /// </summary>
+    /// <param name="showHUD">True to show HUD, false to hide it</param>
     public void SetShowHUD(bool showHUD)
     {
         PlayerPrefs.SetInt("ShowHUD", showHUD ? 1 : 0);
@@ -762,7 +883,13 @@ public class GameSettings : MonoBehaviour
         HUDManager.UpdateHUDVisibility(showHUD);
     }
     
-    // Add this method to the GameSettings class to handle input fields for float values
+    /// <summary>
+    /// Connects a slider with an input field for synchronized value editing
+    /// </summary>
+    /// <param name="inputField">The input field to synchronize</param>
+    /// <param name="slider">The slider to synchronize</param>
+    /// <param name="minValue">Minimum allowed value</param>
+    /// <param name="maxValue">Maximum allowed value</param>
     private void SetupInputField(TMP_InputField inputField, Slider slider, float minValue, float maxValue)
     {
         if (inputField != null && slider != null)
@@ -808,7 +935,9 @@ public class GameSettings : MonoBehaviour
         }
     }
 
-    // Add this method to your Awake() or Start() to set up input field listeners
+    /// <summary>
+    /// Sets up all input field listeners for settings UI
+    /// </summary>
     private void SetupInputFieldListeners()
     {
         // Setup gameplay input fields
@@ -834,7 +963,15 @@ public class GameSettings : MonoBehaviour
             sfxVolumeSlider.onValueChanged.AddListener(SetSFXVolume);
     }
     
-    // Create a new method specifically for audio input fields
+    /// <summary>
+    /// Connects an audio mixer parameter to a slider and input field with real-time updates
+    /// </summary>
+    /// <param name="inputField">The input field to synchronize</param>
+    /// <param name="slider">The slider to synchronize</param>
+    /// <param name="minValue">Minimum allowed value</param>
+    /// <param name="maxValue">Maximum allowed value</param>
+    /// <param name="mixerParam">The name of the audio mixer parameter</param>
+    /// <param name="prefsKey">The PlayerPrefs key to save the value</param>
     private void SetupAudioInputField(TMP_InputField inputField, Slider slider, float minValue, float maxValue, string mixerParam, string prefsKey)
     {
         if (inputField != null && slider != null)
@@ -889,7 +1026,10 @@ public class GameSettings : MonoBehaviour
         }
     }
 
-    // Add a new method for changing resolution:
+    /// <summary>
+    /// Sets the screen resolution based on the selected resolution index
+    /// </summary>
+    /// <param name="resolutionIndex">Index into the resolutions array</param>
     public void SetResolution(int resolutionIndex)
     {
         if (resolutions != null && resolutionIndex >= 0 && resolutionIndex < resolutions.Length)
@@ -909,7 +1049,13 @@ public class GameSettings : MonoBehaviour
         }
     }
 
-    // Add this new method for integer-only input fields:
+    /// <summary>
+    /// Connects an integer input field with a slider for synchronized value editing
+    /// </summary>
+    /// <param name="inputField">The input field to synchronize</param>
+    /// <param name="slider">The slider to synchronize</param>
+    /// <param name="minValue">Minimum allowed integer value</param>
+    /// <param name="maxValue">Maximum allowed integer value</param>
     private void SetupIntegerInputField(TMP_InputField inputField, Slider slider, int minValue, int maxValue)
     {
         if (inputField != null && slider != null)
@@ -952,6 +1098,10 @@ public class GameSettings : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Sets whether aiming down sights uses toggle mode or hold mode
+    /// </summary>
+    /// <param name="toggleAim">True for toggle mode, false for hold mode</param>
     public void SetToggleAim(bool toggleAim)
     {
         PlayerPrefs.SetInt("ToggleAim", toggleAim ? 1 : 0);
@@ -963,4 +1113,6 @@ public class GameSettings : MonoBehaviour
             aim.SetToggleMode(toggleAim);
         }
     }
+    
+    #endregion
 }

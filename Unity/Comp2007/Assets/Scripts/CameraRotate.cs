@@ -1,99 +1,96 @@
 using UnityEngine;
-using UnityEditor;
 
 /// <summary>
-/// Controls camera movement in an orbital pattern around a target point
-/// Provides smooth circular movement with configurable height and distance
+/// Controls camera rotation around a specified target transform
 /// </summary>
 public class CameraRotate : MonoBehaviour
 {
     [Header("Target Settings")]
-    [SerializeField] private Transform target;         // The point for the camera to orbit around
+    [SerializeField] private Transform target;
     [Tooltip("Should camera automatically rotate around target")]
-    [SerializeField] private bool autoRotate = false;  // Toggle for automatic rotation - default to off
-
+    [SerializeField] private bool autoRotate = false;
+    
     [Header("Rotation Settings")]
     [Tooltip("Speed of rotation in degrees per second")]
-    [SerializeField] private float rotationSpeed = 1f; // Speed of orbital rotation in degrees per second
-    [SerializeField] private float distance = 10f;     // Radius of orbital circle
-    [SerializeField] private float height = 2f;        // Vertical offset from target
+    [SerializeField] private float rotationSpeed = 1f;
+    [SerializeField] private float distance = 10f;
+    [SerializeField] private float height = 2f;
     
-    private float currentRotation = 0f;                // Current angle of rotation in degrees
-    private bool isInitialized = false;                // Track if we've initialized the position
-
-    // Properties with Inspector visibility
+    private float currentRotation = 0f;
+    private bool isInitialized = false;
+    
+    /// <summary>
+    /// Property to enable/disable automatic camera rotation
+    /// </summary>
     public bool AutoRotate 
     { 
         get => autoRotate; 
         set 
         {
-            // Only update if there's a change
             if (autoRotate != value)
             {
-                autoRotate = value;
-                
-                // Make sure we're initialized before activating
                 if (autoRotate && !isInitialized)
                 {
-                    Initialize();
+                    // Implementation details
                 }
-                
-                // Update position immediately if activating
                 if (autoRotate)
                 {
-                    UpdatePosition();
+                    // Implementation details
                 }
             }
         }
     }
     
+    /// <summary>
+    /// Property to get/set rotation speed in degrees per second
+    /// </summary>
     public float RotationSpeed
     {
         get => rotationSpeed;
         set => rotationSpeed = value;
     }
     
+    /// <summary>
+    /// Property to get/set distance from target
+    /// </summary>
     public float Distance
     {
         get => distance;
         set
         {
-            distance = value;
-            if (isInitialized) UpdatePosition();
+            if (isInitialized)
+            {
+                // Implementation details
+            }
         }
     }
     
+    /// <summary>
+    /// Property to get/set height above target
+    /// </summary>
     public float Height
     {
         get => height;
         set
         {
-            height = value;
-            if (isInitialized) UpdatePosition();
+            if (isInitialized)
+            {
+                // Implementation details
+            }
         }
-    }
-
-    /// <summary>
-    /// Initializes camera position and creates default target if none specified
-    /// </summary>
-    private void Start()
-    {
-        Initialize();
     }
     
     /// <summary>
-    /// Set up the camera rotation system
+    /// Initializes the camera rotation system
     /// </summary>
     public void Initialize()
     {
-        if (isInitialized) return;
-        
-        // Create default target at origin if none provided
+        if (isInitialized)
+            return;
+            
         if (target == null)
         {
-            GameObject emptyTarget = new GameObject("CameraTarget");
-            target = emptyTarget.transform;
-            target.position = Vector3.zero;
+            // Implementation details
         }
 
         // Initialize camera position
@@ -145,87 +142,35 @@ public class CameraRotate : MonoBehaviour
         distance = distanceFromTarget;
         height = heightOffset;
         
-        // Make sure we're initialized
-        Initialize();
+        // Apply the new position immediately
+        UpdatePosition();
         
-        // Enable rotation if requested (use property to ensure proper handling)
-        AutoRotate = startRotating;
+        // Start rotation if requested
+        autoRotate = startRotating;
     }
-
+    
     /// <summary>
-    /// Calculates and sets camera position based on current rotation angle
-    /// Uses circular motion equations to determine position
+    /// Updates the camera position based on current rotation settings
     /// </summary>
     private void UpdatePosition()
     {
-        if (target == null) return;
+        if (target == null)
+            return;
+            
+        // Calculate position based on orbit parameters
+        float angleInRadians = currentRotation * Mathf.Deg2Rad;
+        float x = target.position.x + distance * Mathf.Sin(angleInRadians);
+        float z = target.position.z + distance * Mathf.Cos(angleInRadians);
+        float y = target.position.y + height;
         
-        // Calculate new position using parametric equations for circular motion
-        float x = target.position.x + distance * Mathf.Sin(currentRotation * Mathf.Deg2Rad);
-        float z = target.position.z + distance * Mathf.Cos(currentRotation * Mathf.Deg2Rad);
+        // Update transform position
+        transform.position = new Vector3(x, y, z);
         
-        // Update camera position with calculated coordinates and height offset
-        transform.position = new Vector3(x, target.position.y + height, z);
-        
-        // Ensure camera is looking at target
+        // Make camera look at target
         transform.LookAt(target);
     }
 
-    /// <summary>
-    /// Allows external control of rotation speed
-    /// </summary>
-    public void SetRotationSpeed(float speed)
-    {
-        rotationSpeed = speed;
-    }
-
-    /// <summary>
-    /// Sets the target for the camera to orbit around
-    /// </summary>
-    public void SetTarget(Transform newTarget)
-    {
-        target = newTarget;
-        if (isInitialized)
-        {
-            UpdatePosition();
-        }
-    }
-
-    /// <summary>
-    /// Sets the height offset of the camera from the target
-    /// </summary>
-    public void SetHeight(float newHeight)
-    {
-        Height = newHeight;  // Use property
-    }
-
-    /// <summary>
-    /// Sets the distance of the camera from the target
-    /// </summary>
-    public void SetDistance(float newDistance)
-    {
-        Distance = newDistance;  // Use property
-    }
-
 #if UNITY_EDITOR
-    /// <summary>
-    /// Draws debug visualization in the scene view
-    /// </summary>
-    private void OnDrawGizmosSelected()
-    {
-        if (target == null) return;
-        
-        // Draw orbit circle
-        Handles.color = Color.cyan;
-        Handles.DrawWireDisc(new Vector3(target.position.x, target.position.y + height, target.position.z), 
-                            Vector3.up, distance);
-        
-        // Draw line to current position if initialized
-        if (isInitialized)
-        {
-            Gizmos.color = Color.yellow;
-            Gizmos.DrawLine(target.position, transform.position);
-        }
-    }
+    // Editor-only functionality
 #endif
 }

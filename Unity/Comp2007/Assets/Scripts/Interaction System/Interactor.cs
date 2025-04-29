@@ -3,8 +3,10 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
 /// Manages player interaction with objects implementing IInteractable interface
 /// Detects nearby interactable objects and handles interaction input
+/// </summary>
 public class Interactor : MonoBehaviour
 {
     [SerializeField] private Transform _interactionPoint;          // Point from which to check for interactables
@@ -18,7 +20,9 @@ public class Interactor : MonoBehaviour
     private IInteractable _interactable;                          // Currently focused interactable object
     private KeyCode _lastInteractionKey = KeyCode.None;           // Track the last interaction key to prevent log spam
 
+    /// <summary>
     /// Updates interaction detection and handles player input each frame
+    /// </summary>
     private void Update()
     {
         // Skip all input processing if game is paused
@@ -102,6 +106,7 @@ public class Interactor : MonoBehaviour
                     }
                     catch
                     {
+                        // Silently fail if there's an error getting the key
                     }
                 }
                 
@@ -146,10 +151,48 @@ public class Interactor : MonoBehaviour
         }
     }
 
+    /// <summary>
     /// Draws interaction radius visualization in editor
+    /// </summary>
     private void OnDrawGizmos()
     {
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(_interactionPoint.position, _interactionPointRadius);
+    }
+    
+    /// <summary>
+    /// Gets the current interaction point transform
+    /// </summary>
+    /// <returns>The transform used as the center of interaction detection</returns>
+    public Transform GetInteractionPoint()
+    {
+        return _interactionPoint;
+    }
+    
+    /// <summary>
+    /// Gets the radius within which interactions can occur
+    /// </summary>
+    /// <returns>The interaction detection radius</returns>
+    public float GetInteractionRadius()
+    {
+        return _interactionPointRadius;
+    }
+    
+    /// <summary>
+    /// Sets a new interaction radius
+    /// </summary>
+    /// <param name="radius">The new interaction detection radius</param>
+    public void SetInteractionRadius(float radius)
+    {
+        _interactionPointRadius = Mathf.Max(0.1f, radius); // Ensure minimum valid radius
+    }
+    
+    /// <summary>
+    /// Gets the currently focused interactable object
+    /// </summary>
+    /// <returns>The current interactable object, or null if none</returns>
+    public IInteractable GetCurrentInteractable()
+    {
+        return _interactable;
     }
 }

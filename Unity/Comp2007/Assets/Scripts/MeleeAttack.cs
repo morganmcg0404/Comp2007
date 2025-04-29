@@ -3,40 +3,79 @@ using System.Collections;
 
 /// <summary>
 /// Handles melee weapon attacks such as knife slashes
+/// Implements both primary (stab) and secondary (swing) attack types with different damage profiles
 /// </summary>
 public class MeleeAttack : MonoBehaviour
 {
     [Header("Melee Attack Settings")]
+    /// <summary>Base damage amount for the melee weapon</summary>
     [SerializeField] private float damage = 50f;
+    
+    /// <summary>Maximum distance the attack can reach</summary>
     [SerializeField] private float attackRange = 3f;
+    
+    /// <summary>How many seconds between attacks</summary>
     [SerializeField] private float attackRate = 0.8f;
+    
+    /// <summary>Width of the attack arc in degrees for swing attacks</summary>
     [SerializeField] private float attackAngle = 60f; // Attack arc in degrees
+    
+    /// <summary>Layers that can be hit by the melee attack</summary>
     [SerializeField] private LayerMask hitLayers;
     
     [Header("Attack Types")]
+    /// <summary>Whether the primary attack (stab) is enabled</summary>
     [SerializeField] private bool primaryStab = true;
+    
+    /// <summary>Whether the secondary attack (swing) is enabled</summary>
     [SerializeField] private bool secondarySwing = true;
+    
+    /// <summary>Damage multiplier for the stab attack</summary>
     [SerializeField] private float stabDamageMultiplier = 1.5f;
+    
+    /// <summary>Rate multiplier for stab attacks (values below 1 make stabs faster)</summary>
     [SerializeField] private float stabRateMultiplier = 0.7f;
     
     [Header("Effects")]
+    /// <summary>Audio source for the primary (stab) attack sound</summary>
     [SerializeField] private AudioSource primaryAttackSound;
+    
+    /// <summary>Audio source for the secondary (swing) attack sound</summary>
     [SerializeField] private AudioSource secondaryAttackSound;
+    
+    /// <summary>Particle system for the swing attack visual effect</summary>
     [SerializeField] private ParticleSystem slashEffect;
+    
+    /// <summary>Effect spawned when hitting non-organic surfaces</summary>
     [SerializeField] private GameObject hitEffect;
+    
+    /// <summary>Effect spawned when hitting organic targets like enemies</summary>
     [SerializeField] private GameObject bloodEffect;
     
     [Header("Animation")]
+    /// <summary>Animator component for playing melee attack animations</summary>
     [SerializeField] private Animator meleeAnimator;
+    
+    /// <summary>Animator trigger parameter name for the primary attack</summary>
     [SerializeField] private string primaryAttackTrigger = "Stab";
+    
+    /// <summary>Animator trigger parameter name for the secondary attack</summary>
     [SerializeField] private string secondaryAttackTrigger = "Swing";
     
     // Internal variables
+    /// <summary>Time when the next attack can be performed</summary>
     private float nextAttackTime = 0f;
+    
+    /// <summary>Reference to the player camera for raycasting</summary>
     private Camera playerCamera;
+    
+    /// <summary>Whether an attack is currently in progress</summary>
     private bool isAttacking = false;
     
-    // Start is called before the first frame update
+    /// <summary>
+    /// Initializes the melee attack component
+    /// Sets up camera reference and animator if not assigned
+    /// </summary>
     void Start()
     {
         playerCamera = Camera.main;
@@ -48,7 +87,10 @@ public class MeleeAttack : MonoBehaviour
         }
     }
     
-    // Update is called once per frame
+    /// <summary>
+    /// Handles input for triggering melee attacks
+    /// Checks for attack cooldowns and input conditions
+    /// </summary>
     void Update()
     {
         // Skip all input processing if game is paused
@@ -73,6 +115,7 @@ public class MeleeAttack : MonoBehaviour
     
     /// <summary>
     /// Performs a stab attack (primary attack)
+    /// Deals higher damage in a focused point but has a more limited hit area
     /// </summary>
     void PerformStabAttack()
     {
@@ -100,6 +143,7 @@ public class MeleeAttack : MonoBehaviour
     
     /// <summary>
     /// Performs a swing attack (secondary attack)
+    /// Deals standard damage but in a wider arc in front of the player
     /// </summary>
     void PerformSwingAttack()
     {
@@ -132,8 +176,11 @@ public class MeleeAttack : MonoBehaviour
     }
     
     /// <summary>
-    /// Apply stab damage after animation delay
+    /// Applies stab damage after a short delay to sync with the animation
+    /// Uses a direct forward raycast for precise targeting
     /// </summary>
+    /// <param name="delay">Time in seconds to wait before applying damage</param>
+    /// <returns>IEnumerator for coroutine execution</returns>
     private IEnumerator DelayedStabDamage(float delay)
     {
         yield return new WaitForSeconds(delay);
@@ -154,8 +201,11 @@ public class MeleeAttack : MonoBehaviour
     }
     
     /// <summary>
-    /// Apply swing damage after animation delay
+    /// Applies swing damage after a short delay to sync with the animation
+    /// Uses an arc attack that can hit multiple targets
     /// </summary>
+    /// <param name="delay">Time in seconds to wait before applying damage</param>
+    /// <returns>IEnumerator for coroutine execution</returns>
     private IEnumerator DelayedSwingDamage(float delay)
     {
         yield return new WaitForSeconds(delay);
@@ -170,6 +220,7 @@ public class MeleeAttack : MonoBehaviour
     
     /// <summary>
     /// Performs an arc attack that can hit multiple targets in front of the player
+    /// Uses overlap sphere and angle checking to determine valid targets
     /// </summary>
     private void PerformArcAttack()
     {
@@ -204,8 +255,11 @@ public class MeleeAttack : MonoBehaviour
     }
     
     /// <summary>
-    /// Apply damage to hit object if it has health
+    /// Applies damage to a hit object if it has a health component
+    /// Also handles point scoring and kill detection
     /// </summary>
+    /// <param name="hit">The raycast hit information</param>
+    /// <param name="damageAmount">Amount of damage to apply</param>
     private void ApplyDamage(RaycastHit hit, float damageAmount)
     {
         // Apply damage if target has health component
@@ -245,8 +299,10 @@ public class MeleeAttack : MonoBehaviour
     }
     
     /// <summary>
-    /// Create appropriate hit effect based on what was hit
+    /// Creates an appropriate hit effect at the point of impact
+    /// Uses different effects for organic vs non-organic targets
     /// </summary>
+    /// <param name="hit">The raycast hit information containing the hit point and normal</param>
     private void CreateHitEffect(RaycastHit hit)
     {
         // Determine which effect to show
@@ -272,7 +328,7 @@ public class MeleeAttack : MonoBehaviour
     }
     
     /// <summary>
-    /// Visualize the attack arc in the editor
+    /// Visualizes the attack range and arc in the Unity editor for debugging
     /// </summary>
     private void OnDrawGizmosSelected()
     {
@@ -294,8 +350,9 @@ public class MeleeAttack : MonoBehaviour
     }
     
     /// <summary>
-    /// Public method to check if the melee weapon is in the middle of an attack
+    /// Checks if the melee weapon is currently performing an attack
     /// </summary>
+    /// <returns>True if an attack is in progress, false otherwise</returns>
     public bool IsAttacking()
     {
         return isAttacking;

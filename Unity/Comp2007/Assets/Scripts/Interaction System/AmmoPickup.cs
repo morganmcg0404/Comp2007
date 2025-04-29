@@ -44,6 +44,8 @@ public class AmmoPickup : MonoBehaviour, IInteractable
     /// Called when player interacts with the ammo box
     /// Checks if player has enough points, then restores ammo for current weapon
     /// </summary>
+    /// <param name="interactor">The player/entity interacting with this object</param>
+    /// <returns>True if interaction was successful, false otherwise</returns>
     public bool Interact(Interactor interactor)
     {
         // Check if game is paused
@@ -64,6 +66,11 @@ public class AmmoPickup : MonoBehaviour, IInteractable
         // Check if player has enough points
         if (pointSystem.GetCurrentPoints() < pointCost)
         {
+            // Calculate how many more points the player needs
+            int pointsNeeded = pointCost - pointSystem.GetCurrentPoints();
+            
+            // Show insufficient points warning with specific amount needed
+            pointSystem.ShowInsufficientPointsWarning($"Need {pointsNeeded} more points!");
             return false;
         }
         
@@ -137,11 +144,15 @@ public class AmmoPickup : MonoBehaviour, IInteractable
                 }
                 else
                 {
+                    // Show warning that no ammo was added (likely because the weapon is already full)
+                    pointSystem.ShowInsufficientPointsWarning("Weapon already full!");
                     return false;
                 }
             }
             else
             {
+                // Show warning that weapon is already full
+                pointSystem.ShowInsufficientPointsWarning("Weapon already full!");
                 return false;
             }
         }

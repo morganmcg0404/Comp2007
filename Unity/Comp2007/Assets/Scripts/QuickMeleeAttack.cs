@@ -3,32 +3,92 @@ using System.Collections;
 
 /// <summary>
 /// Allows quick melee attacks while using primary or secondary weapons
+/// Handles damage application, effects, and interaction with the point system
 /// </summary>
 public class QuickMeleeAttack : MonoBehaviour
 {
     [Header("Quick Melee Settings")]
+    /// <summary>
+    /// Key used to trigger quick melee attacks
+    /// </summary>
     [SerializeField] private KeyCode quickMeleeKey = KeyCode.V;
+    
+    /// <summary>
+    /// Damage dealt by quick melee attacks
+    /// </summary>
     [SerializeField] private float damage = 40f;
+    
+    /// <summary>
+    /// Maximum distance the quick melee attack can reach
+    /// </summary>
     [SerializeField] private float attackRange = 2f;
+    
+    /// <summary>
+    /// Time in seconds before another quick melee attack can be performed
+    /// </summary>
     [SerializeField] private float cooldown = 1.0f;
+    
+    /// <summary>
+    /// Delay in seconds between button press and damage application
+    /// </summary>
     [SerializeField] private float attackDelay = 0.2f; // Time between press and damage
+    
+    /// <summary>
+    /// Layers that can be hit by quick melee attacks
+    /// </summary>
     [SerializeField] private LayerMask hitLayers;
     
     [Header("Effects")]
+    /// <summary>
+    /// Audio source for the quick melee attack sound
+    /// </summary>
     [SerializeField] private AudioSource quickMeleeSound;
+    
+    /// <summary>
+    /// Effect spawned when hitting non-organic surfaces
+    /// </summary>
     [SerializeField] private GameObject hitEffect;
+    
+    /// <summary>
+    /// Effect spawned when hitting organic targets like enemies
+    /// </summary>
     [SerializeField] private GameObject bloodEffect;
+    
+    /// <summary>
+    /// Animator component for the weapon view model
+    /// </summary>
     [SerializeField] private Animator viewModelAnimator;
+    
+    /// <summary>
+    /// Animation trigger parameter name for quick melee animations
+    /// </summary>
     [SerializeField] private string quickMeleeAnimTrigger = "QuickMelee";
     
     [Header("References")]
+    /// <summary>
+    /// Reference to the weapon manager for checking current weapon
+    /// </summary>
     [SerializeField] private WeaponManager weaponManager;
     
     // Internal variables
+    /// <summary>
+    /// Reference to the main camera for raycasting
+    /// </summary>
     private Camera playerCamera;
+    
+    /// <summary>
+    /// Time when the next attack can be performed
+    /// </summary>
     private float nextAttackTime = 0f;
+    
+    /// <summary>
+    /// Whether a quick melee attack is currently in progress
+    /// </summary>
     private bool isQuickAttacking = false;
     
+    /// <summary>
+    /// Initializes references and attempts to find weapon manager if not assigned
+    /// </summary>
     private void Start()
     {
         playerCamera = Camera.main;
@@ -50,6 +110,9 @@ public class QuickMeleeAttack : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Checks for quick melee input and initiates attack when appropriate
+    /// </summary>
     private void Update()
     {
         // Skip all input processing if game is paused
@@ -70,8 +133,9 @@ public class QuickMeleeAttack : MonoBehaviour
     }
     
     /// <summary>
-    /// Performs the quick melee attack sequence
+    /// Performs the quick melee attack sequence including animation and damage
     /// </summary>
+    /// <returns>IEnumerator for coroutine execution</returns>
     private IEnumerator PerformQuickMeleeAttack()
     {
         // Set cooldown and state
@@ -102,7 +166,8 @@ public class QuickMeleeAttack : MonoBehaviour
     }
     
     /// <summary>
-    /// Applies damage for the quick melee attack
+    /// Applies damage for the quick melee attack using a forward raycast
+    /// Also handles point scoring and effect creation
     /// </summary>
     private void PerformQuickMeleeDamage()
     {
@@ -147,8 +212,10 @@ public class QuickMeleeAttack : MonoBehaviour
     }
     
     /// <summary>
-    /// Create appropriate hit effect based on what was hit
+    /// Creates an appropriate hit effect at the point of impact
+    /// Uses different effects for organic vs non-organic targets
     /// </summary>
+    /// <param name="hit">The raycast hit information containing the hit point and normal</param>
     private void CreateHitEffect(RaycastHit hit)
     {
         // Determine which effect to show
@@ -174,8 +241,9 @@ public class QuickMeleeAttack : MonoBehaviour
     }
     
     /// <summary>
-    /// Returns whether a quick melee attack is in progress
+    /// Returns whether a quick melee attack is currently in progress
     /// </summary>
+    /// <returns>True if an attack is in progress, false otherwise</returns>
     public bool IsQuickAttacking()
     {
         return isQuickAttacking;

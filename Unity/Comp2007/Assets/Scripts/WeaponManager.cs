@@ -3,45 +3,115 @@ using System.Collections;
 
 /// <summary>
 /// Manages weapon switching between primary, secondary, and melee weapons
+/// Handles weapon selection via key presses and scroll wheel input
+/// Controls weapon positions, switching animations, and state management
 /// </summary>
 public class WeaponManager : MonoBehaviour
 {
     [Header("Weapons")]
+    /// <summary>
+    /// Reference to the primary weapon GameObject (typically an assault rifle or similar)
+    /// </summary>
     [SerializeField] private GameObject primaryWeapon;
+    
+    /// <summary>
+    /// Reference to the secondary weapon GameObject (typically a pistol or similar)
+    /// </summary>
     [SerializeField] private GameObject secondaryWeapon;
+    
+    /// <summary>
+    /// Reference to the melee weapon GameObject (typically a knife or similar)
+    /// </summary>
     [SerializeField] private GameObject meleeWeapon;
     
     [Header("Settings")]
+    /// <summary>
+    /// Time in seconds for the weapon switching animation to complete
+    /// </summary>
     [SerializeField] private float weaponSwitchTime = 0.5f;
+    
+    /// <summary>
+    /// Whether weapons can be switched while in the middle of reloading
+    /// </summary>
     [SerializeField] private bool canSwitchDuringReload = false;
+    
+    /// <summary>
+    /// If true, keeps all weapons active in the scene but repositions them off-screen when not selected
+    /// If false, weapons are completely disabled when not in use
+    /// </summary>
     [SerializeField] private bool keepWeaponsActive = true; // Keep all weapons active but reposition them
     
     [Header("Input")]
+    /// <summary>
+    /// Key used to select the primary weapon
+    /// </summary>
     [SerializeField] private KeyCode primaryWeaponKey = KeyCode.Alpha1;
+    
+    /// <summary>
+    /// Key used to select the secondary weapon
+    /// </summary>
     [SerializeField] private KeyCode secondaryWeaponKey = KeyCode.Alpha2;
+    
+    /// <summary>
+    /// Key used to select the melee weapon
+    /// </summary>
     [SerializeField] private KeyCode meleeWeaponKey = KeyCode.Alpha3;
+    
+    /// <summary>
+    /// Whether the mouse scroll wheel can be used to cycle through weapons
+    /// </summary>
     [SerializeField] private bool enableScrollWheel = true;
     
     [Header("Audio")]
+    /// <summary>
+    /// Sound played when switching between weapons
+    /// </summary>
     [SerializeField] private AudioSource weaponSwitchSound;
     
-    // Track current weapon
+    /// <summary>
+    /// Enumeration representing the three weapon slots available to the player
+    /// </summary>
     public enum WeaponSlot
     {
+        /// <summary>Primary weapon slot, typically for assault rifles or similar</summary>
         Primary,
+        
+        /// <summary>Secondary weapon slot, typically for pistols or similar</summary>
         Secondary,
+        
+        /// <summary>Melee weapon slot, typically for knives or similar</summary>
         Melee
     }
     
+    /// <summary>
+    /// Tracks which weapon slot is currently active
+    /// </summary>
     private WeaponSlot currentWeapon = WeaponSlot.Primary;
+    
+    /// <summary>
+    /// Whether a weapon switch is currently in progress
+    /// </summary>
     private bool isSwitchingWeapon = false;
     
     // Cached GunPositioner components
+    /// <summary>
+    /// Reference to the GunPositioner component on the primary weapon
+    /// </summary>
     private GunPositioner primaryPositioner;
+    
+    /// <summary>
+    /// Reference to the GunPositioner component on the secondary weapon
+    /// </summary>
     private GunPositioner secondaryPositioner;
+    
+    /// <summary>
+    /// Reference to the GunPositioner component on the melee weapon
+    /// </summary>
     private GunPositioner meleePositioner;
     
-    // Start is called before the first frame update
+    /// <summary>
+    /// Initializes weapon references and sets up the starting weapon
+    /// </summary>
     void Start()
     {
         // Get GunPositioner components
@@ -61,7 +131,9 @@ public class WeaponManager : MonoBehaviour
         SwitchToWeaponSlot(WeaponSlot.Primary, true);
     }
     
-    // Update is called once per frame
+    /// <summary>
+    /// Processes input for weapon switching via keyboard keys and scroll wheel
+    /// </summary>
     void Update()
     {
         // Don't process input if game is paused
@@ -104,6 +176,10 @@ public class WeaponManager : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Initializes weapons by setting their active states and positions
+    /// Logs warnings if weapon references are missing
+    /// </summary>
     private void InitializeWeapons()
     {
         // Check if weapons are assigned
@@ -153,10 +229,14 @@ public class WeaponManager : MonoBehaviour
     }
     
     /// <summary>
-    /// Switch to specified weapon slot
+    /// Switches to the specified weapon slot with optional immediate transition
     /// </summary>
     /// <param name="slot">The weapon slot to switch to</param>
     /// <param name="immediate">If true, switches instantly with no animation</param>
+    /// <remarks>
+    /// When immediate is false, a smooth transition animation plays.
+    /// Switching may be prevented if the current weapon is reloading and canSwitchDuringReload is false.
+    /// </remarks>
     public void SwitchToWeaponSlot(WeaponSlot slot, bool immediate = false)
     {
         // Skip if trying to switch to current weapon
@@ -211,6 +291,11 @@ public class WeaponManager : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Coroutine that handles the weapon switching process with animation
+    /// </summary>
+    /// <param name="newSlot">The weapon slot to switch to</param>
+    /// <returns>IEnumerator for coroutine execution</returns>
     private IEnumerator SwitchWeaponRoutine(WeaponSlot newSlot)
     {
         isSwitchingWeapon = true;
@@ -233,6 +318,10 @@ public class WeaponManager : MonoBehaviour
         isSwitchingWeapon = false;
     }
     
+    /// <summary>
+    /// Completes the weapon switch by activating the new weapon and updating state
+    /// </summary>
+    /// <param name="newSlot">The weapon slot to activate</param>
     private void CompleteWeaponSwitch(WeaponSlot newSlot)
     {
         // Update weapon states
@@ -255,6 +344,9 @@ public class WeaponManager : MonoBehaviour
         currentWeapon = newSlot;
     }
     
+    /// <summary>
+    /// Disables or repositions the current weapon when switching away from it
+    /// </summary>
     private void DisableCurrentWeapon()
     {
         if (keepWeaponsActive)
@@ -292,9 +384,13 @@ public class WeaponManager : MonoBehaviour
     }
     
     /// <summary>
-    /// Cycles through available weapons
+    /// Cycles through available weapons in the specified direction
     /// </summary>
     /// <param name="forward">Direction to cycle (true = forward, false = backward)</param>
+    /// <remarks>
+    /// Forward cycling: Primary → Secondary → Melee → Primary
+    /// Backward cycling: Primary → Melee → Secondary → Primary
+    /// </remarks>
     private void CycleWeapon(bool forward)
     {
         WeaponSlot nextSlot;
@@ -314,8 +410,9 @@ public class WeaponManager : MonoBehaviour
     }
     
     /// <summary>
-    /// Gets the Shoot script on the current weapon
+    /// Gets the Shoot script component on the current weapon
     /// </summary>
+    /// <returns>The Shoot component on the current weapon, or null if not found</returns>
     private Shoot GetCurrentWeaponScript()
     {
         GameObject currentWeaponObject = null;
@@ -342,16 +439,18 @@ public class WeaponManager : MonoBehaviour
     }
     
     /// <summary>
-    /// Returns the current active weapon slot
+    /// Returns the currently active weapon slot
     /// </summary>
+    /// <returns>The enum value representing the current weapon slot</returns>
     public WeaponSlot GetCurrentWeaponSlot()
     {
         return currentWeapon;
     }
 
     /// <summary>
-    /// Gets the currently active weapon GameObject
+    /// Gets the GameObject reference for the currently active weapon
     /// </summary>
+    /// <returns>The GameObject of the current weapon, or null if not found</returns>
     public GameObject GetCurrentWeaponObject()
     {
         switch (currentWeapon)
@@ -368,8 +467,9 @@ public class WeaponManager : MonoBehaviour
     }
     
     /// <summary>
-    /// Check if player is currently in the process of switching weapons
+    /// Checks if a weapon switch animation is currently in progress
     /// </summary>
+    /// <returns>True if a weapon switch is in progress, false otherwise</returns>
     public bool IsSwitchingWeapon()
     {
         return isSwitchingWeapon;

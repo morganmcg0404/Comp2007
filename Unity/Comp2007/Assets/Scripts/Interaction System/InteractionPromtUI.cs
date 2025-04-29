@@ -1,45 +1,53 @@
 using UnityEngine;
 using TMPro;
 
-/// Manages the UI prompt that appears when player is near interactable objects
-/// Handles display, positioning, and text updates for interaction prompts
+/// <summary>
+/// Handles the UI display of interaction prompts
+/// </summary>
 public class InteractionPromtUI : MonoBehaviour
 {
-    private Camera _mainCam;                                    // Reference to main camera
-    [SerializeField] private GameObject _uiPanel;              // UI panel containing the prompt
-    [SerializeField] private TextMeshProUGUI _promptText;      // Text component for displaying prompt
+    [SerializeField] private GameObject _promptPanel;  // The panel containing the prompt
+    [SerializeField] private TextMeshProUGUI _promptText;  // The text component to display the prompt
+    
+    /// <summary>
+    /// Gets whether the prompt is currently being displayed
+    /// </summary>
+    public bool IsDisplayed { get; private set; }
 
-    /// Initializes camera reference and hides UI panel on start
+    /// <summary>
+    /// Initializes the UI prompt by hiding it on start
+    /// </summary>
     private void Start()
     {
-        _mainCam = Camera.main;
-        _uiPanel.SetActive(false);
+        if (_promptPanel != null)
+            _promptPanel.SetActive(false);
+        
+        IsDisplayed = false;
     }
 
-    /// Updates prompt orientation to face camera each frame after other updates
-    /// Ensures prompt is always readable by the player
-    void LateUpdate()
-    {
-        var rotation = _mainCam.transform.rotation;
-        transform.LookAt(transform.position + rotation * Vector3.forward, 
-                        rotation * Vector3.up);
-    }
-
-    /// Tracks whether the prompt is currently being displayed
-    public bool IsDisplayed = false;
-
-    /// Shows the UI prompt with specified text
+    /// <summary>
+    /// Sets up and displays the interaction prompt with the given text
+    /// </summary>
+    /// <param name="promptText">Text to display in the prompt</param>
     public void SetUp(string promptText)
     {
-        _promptText.text = promptText;
-        _uiPanel.SetActive(true);
+        if (_promptText != null)
+            _promptText.text = promptText;
+        
+        if (_promptPanel != null && !_promptPanel.activeSelf)
+            _promptPanel.SetActive(true);
+        
         IsDisplayed = true;
     }
 
-    /// Hides the UI prompt
+    /// <summary>
+    /// Closes/hides the interaction prompt
+    /// </summary>
     public void Close()
     {
-        _uiPanel.SetActive(false);
+        if (_promptPanel != null)
+            _promptPanel.SetActive(false);
+        
         IsDisplayed = false;
     }
 }

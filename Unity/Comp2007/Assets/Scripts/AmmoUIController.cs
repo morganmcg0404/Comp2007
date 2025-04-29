@@ -1,12 +1,16 @@
 using UnityEngine;
 using TMPro;
 
+/// <summary>
+/// Controls the display and update of ammunition UI elements for weapons
+/// </summary>
 public class AmmoUIController : MonoBehaviour
 {
     [Header("UI References")]
     [SerializeField] private TextMeshProUGUI currentAmmoText;   // Current ammo in magazine
     [SerializeField] private TextMeshProUGUI maxClipSizeText;   // Max clip capacity
     [SerializeField] private TextMeshProUGUI remainingAmmoText; // Total remaining ammo
+    [SerializeField] private GameObject reloadPrompt;           // Reference to the reload prompt UI element
 
     [Header("UI Settings")]
     [SerializeField] private Color lowAmmoColor = Color.red;   // Color when ammo is low
@@ -22,6 +26,9 @@ public class AmmoUIController : MonoBehaviour
     private string lastWeaponName = "";  // Track the last weapon's name to prevent duplicate logging
     private bool currentWeaponIsMelee = false; // Track if current weapon is melee
 
+    /// <summary>
+    /// Initializes the controller, finds necessary components, and sets default UI values
+    /// </summary>
     void Start()
     {
         // Find the weapon manager in the scene
@@ -31,8 +38,14 @@ public class AmmoUIController : MonoBehaviour
         if (currentAmmoText) currentAmmoText.text = "--";
         if (maxClipSizeText) maxClipSizeText.text = "--";
         if (remainingAmmoText) remainingAmmoText.text = "--";
+        
+        // Hide reload prompt initially
+        if (reloadPrompt) reloadPrompt.SetActive(false);
     }
 
+    /// <summary>
+    /// Updates the ammo display based on active weapon and its state
+    /// </summary>
     void Update()
     {
         // Always check if the weapon has changed
@@ -66,6 +79,7 @@ public class AmmoUIController : MonoBehaviour
                         if (currentWeaponIsMelee)
                         {
                             DisplayMeleeAmmo();
+                            HideReloadPrompt(); // Hide reload prompt for melee weapons
                         }
                     }
                 }
@@ -79,6 +93,7 @@ public class AmmoUIController : MonoBehaviour
                     if (currentAmmoText) currentAmmoText.text = "--";
                     if (maxClipSizeText) maxClipSizeText.text = "--";
                     if (remainingAmmoText) remainingAmmoText.text = "--";
+                    HideReloadPrompt(); // Hide reload prompt when no weapon
                 }
             }
         }
@@ -87,15 +102,70 @@ public class AmmoUIController : MonoBehaviour
         if (activeWeapon != null)
         {
             // Only update if the weapon isn't already determined to be melee
-            // This prevents the values from being overridden by the previous weapon's ammo
             if (!currentWeaponIsMelee)
             {
                 UpdateAmmoDisplay(activeWeapon);
+                
+                // Check if we need to show/hide the reload prompt
+                UpdateReloadPrompt(activeWeapon);
             }
         }
     }
 
-    // Update all ammo display elements based on the active weapon
+    /// <summary>
+    /// Determines whether to show or hide reload prompt based on weapon's ammo status
+    /// </summary>
+    /// <param name="weapon">The weapon to check ammo status for</param>
+    private void UpdateReloadPrompt(Shoot weapon)
+    {
+        if (weapon == null || reloadPrompt == null) return;
+        
+        // Skip if weapon is reloading
+        if (weapon.IsReloading())
+        {
+            HideReloadPrompt();
+            return;
+        }
+        
+        // Show reload prompt if ammo is low and we have reserve ammo
+        int lowAmmoThresholdValue = Mathf.CeilToInt(weapon.GetMagazineSize() * lowAmmoThreshold);
+        
+        if (weapon.GetCurrentAmmoInMag() <= lowAmmoThresholdValue && weapon.GetCurrentTotalAmmo() > 0)
+        {
+            ShowReloadPrompt();
+        }
+        else
+        {
+            HideReloadPrompt();
+        }
+    }
+
+    /// <summary>
+    /// Shows the reload prompt UI element
+    /// </summary>
+    private void ShowReloadPrompt()
+    {
+        if (reloadPrompt != null && !reloadPrompt.activeSelf)
+        {
+            reloadPrompt.SetActive(true);
+        }
+    }
+
+    /// <summary>
+    /// Hides the reload prompt UI element
+    /// </summary>
+    private void HideReloadPrompt()
+    {
+        if (reloadPrompt != null && reloadPrompt.activeSelf)
+        {
+            reloadPrompt.SetActive(false);
+        }
+    }
+
+    /// <summary>
+    /// Updates all ammo display elements based on the active weapon
+    /// </summary>
+    /// <param name="weapon">The weapon to display ammo information for</param>
     public void UpdateAmmoDisplay(Shoot weapon)
     {
         if (weapon == null) return;
@@ -115,7 +185,10 @@ public class AmmoUIController : MonoBehaviour
         }
     }
 
-    // Display ammo for ranged weapons
+    /// <summary>
+    /// Updates UI to display ammo information for ranged weapons
+    /// </summary>
+    /// <param name="weapon">The ranged weapon to display ammo for</param>
     private void DisplayRangedAmmo(Shoot weapon)
     {
         int currentAmmo = weapon.GetCurrentAmmoInMag();
@@ -154,7 +227,9 @@ public class AmmoUIController : MonoBehaviour
         }
     }
 
-    // Display ammo for melee weapons (1 / 1 1)
+    /// <summary>
+    /// Updates UI to display placeholder values for melee weapons
+    /// </summary>
     private void DisplayMeleeAmmo()
     {
         // Update all text elements with melee values (specifically "1" for all fields)
@@ -175,7 +250,11 @@ public class AmmoUIController : MonoBehaviour
         }
     }
 
-    // Determine if a weapon is melee based on certain properties
+    /// <summary>
+    /// Determines if a weapon is a melee weapon based on various characteristics
+    /// </summary>
+    /// <param name="weapon">The weapon to check</param>
+    /// <returns>True if the weapon is determined to be a melee weapon</returns>
     private bool IsMeleeWeapon(Shoot weapon)
     {
         if (weapon == null) return false;

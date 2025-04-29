@@ -1,5 +1,9 @@
 using UnityEngine;
 
+/// <summary>
+/// Handles weapon positioning, transitions between hip, ADS, and inactive states
+/// Provides smooth movement and rotation for weapons with clipping prevention
+/// </summary>
 public class GunPositioner : MonoBehaviour
 {
     [Header("References")]
@@ -40,6 +44,9 @@ public class GunPositioner : MonoBehaviour
     // Current transition speed
     private float currentPositionSpeed;
 
+    /// <summary>
+    /// Initializes references, attempts to find missing components, and sets initial position/rotation
+    /// </summary>
     private void Start()
     {
         // If camera isn't assigned, try to find main camera
@@ -87,6 +94,9 @@ public class GunPositioner : MonoBehaviour
         UpdateTargetRotation();
     }
 
+    /// <summary>
+    /// Checks if weapon is active and updates state if necessary
+    /// </summary>
     private void Update()
     {
         // Check if this is the active weapon
@@ -109,6 +119,9 @@ public class GunPositioner : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Updates weapon position and rotation after camera and player movement is calculated
+    /// </summary>
     private void LateUpdate()
     {
         // LateUpdate ensures this runs after camera and character movement is calculated
@@ -128,7 +141,10 @@ public class GunPositioner : MonoBehaviour
                                             rotationSmoothSpeed * Time.deltaTime);
     }
     
-    // Update the target position based on active and ADS states
+    /// <summary>
+    /// Calculates the target position based on weapon state (active/inactive, aiming/not aiming)
+    /// Handles clipping prevention for positions too close to the camera
+    /// </summary>
     private void UpdateTargetPosition()
     {
         if (!isActiveWeapon && playerBodyTransform != null)
@@ -165,7 +181,10 @@ public class GunPositioner : MonoBehaviour
         }
     }
     
-    // Update the target rotation based on active state
+    /// <summary>
+    /// Calculates the target rotation based on weapon state and camera orientation
+    /// Active weapons follow all camera rotations, inactive weapons can selectively follow yaw
+    /// </summary>
     private void UpdateTargetRotation()
     {
         if (cameraTransform == null) return;
@@ -199,7 +218,10 @@ public class GunPositioner : MonoBehaviour
         }
     }
     
-    // Public method to set ADS state
+    /// <summary>
+    /// Sets the weapon's aiming state, which determines positioning (ADS vs hip)
+    /// </summary>
+    /// <param name="isAiming">True to aim down sights, false for hip fire position</param>
     public void SetAimingState(bool isAiming)
     {
         if (isAimingDownSights == isAiming)
@@ -209,7 +231,10 @@ public class GunPositioner : MonoBehaviour
         UpdateTargetPosition();
     }
     
-    // Public method to force position update
+    /// <summary>
+    /// Forces an immediate update of the weapon's position and rotation based on activity state
+    /// </summary>
+    /// <param name="active">Whether the weapon should be positioned as active or inactive</param>
     public void UpdatePosition(bool active)
     {
         isActiveWeapon = active;
@@ -217,25 +242,37 @@ public class GunPositioner : MonoBehaviour
         UpdateTargetRotation();
     }
     
-    // Helper method to get current weapon slot
+    /// <summary>
+    /// Gets the weapon slot that this gun occupies in the weapon manager
+    /// </summary>
+    /// <returns>The assigned weapon slot enum value</returns>
     public WeaponManager.WeaponSlot GetWeaponSlot()
     {
         return myWeaponSlot;
     }
     
-    // Helper to check if this is the active weapon
+    /// <summary>
+    /// Determines if this weapon is currently the active one being used by the player
+    /// </summary>
+    /// <returns>True if this is the active weapon, false otherwise</returns>
     public bool IsActiveWeapon()
     {
         return isActiveWeapon;
     }
     
-    // Helper to check if this weapon is currently aiming
+    /// <summary>
+    /// Determines if the weapon is currently in aiming down sights mode
+    /// </summary>
+    /// <returns>True if player is aiming down sights with this weapon</returns>
     public bool IsAimingDownSights()
     {
         return isAimingDownSights;
     }
     
-    // For visualizing positions in the editor
+    /// <summary>
+    /// Visualizes weapon positions in the Unity Editor for easier setup
+    /// Shows colored spheres at hip, ADS, and inactive positions
+    /// </summary>
     private void OnDrawGizmosSelected()
     {
         if (cameraTransform != null)

@@ -1,58 +1,172 @@
 using UnityEngine;
 using UnityEngine.AI;
 
+/// <summary>
+/// Controls zombie movement behavior using Unity's NavMesh system
+/// Handles different zombie movement types, target following, and animation integration
+/// </summary>
 public class ZombieNavigation : MonoBehaviour
 {
+    /// <summary>
+    /// Defines the different speed categories of zombies
+    /// </summary>
     public enum ZombieType
     {
+        /// <summary>Slow zombie with basic walking speed</summary>
         Walker,
+        
+        /// <summary>Medium-speed zombie that jogs toward targets</summary>
         Jogger,
+        
+        /// <summary>Fast zombie that runs at full speed</summary>
         Sprinter
     }
 
     [Header("Navigation Settings")]
+    /// <summary>
+    /// Time in seconds between path recalculations
+    /// </summary>
     [SerializeField] private float updatePathInterval = 0.5f;
+    
+    /// <summary>
+    /// Distance in meters at which the zombie will stop approaching the player
+    /// </summary>
     [SerializeField] private float stoppingDistance = 1.5f;
+    
+    /// <summary>
+    /// Speed at which the zombie rotates to face its movement direction
+    /// </summary>
     [SerializeField] private float rotationSpeed = 5f;
     
     [Header("Movement Settings")]
+    /// <summary>
+    /// Movement speed in meters per second for walker zombies
+    /// </summary>
     [SerializeField] private float walkSpeed = 3f;    // Normal walking speed
+    
+    /// <summary>
+    /// Movement speed in meters per second for jogger zombies
+    /// </summary>
     [SerializeField] private float jogSpeed = 5f;     // Medium jogger speed
+    
+    /// <summary>
+    /// Movement speed in meters per second for sprinter zombies
+    /// </summary>
     [SerializeField] private float sprintSpeed = 8f;  // Sprint speed for faster zombies
+    
+    /// <summary>
+    /// Movement speed in meters per second when critically injured
+    /// </summary>
     [SerializeField] private float injuredSpeed = 1.5f; // Speed when critically injured
     
     [Header("Zombie Type")]
+    /// <summary>
+    /// The movement type of this zombie instance
+    /// </summary>
     [SerializeField] private ZombieType zombieType = ZombieType.Walker; // Default to walker
+    
+    /// <summary>
+    /// Health percentage threshold below which the zombie is considered critically injured
+    /// </summary>
     [SerializeField] private float criticalHealthPercent = 0.1f; // 10% health threshold for slowing down
     
     [Header("Grounding Settings")]
+    /// <summary>
+    /// Whether to apply gravity and ground checking to the zombie
+    /// </summary>
     [SerializeField] private bool applyGravity = true;
+    
+    /// <summary>
+    /// Strength of gravity applied to the zombie when not on NavMesh
+    /// </summary>
     [SerializeField] private float gravityMultiplier = 9.81f; // Standard gravity
+    
+    /// <summary>
+    /// Distance to check below the zombie for ground detection
+    /// </summary>
     [SerializeField] private float groundCheckDistance = 0.2f; // How far to check for ground
+    
+    /// <summary>
+    /// Layers that are considered as ground for height adjustment
+    /// </summary>
     [SerializeField] private LayerMask groundLayer; // Set this in the inspector to your ground layers
+    
+    /// <summary>
+    /// Transform positioned at the zombie's feet for accurate ground checking
+    /// </summary>
     [SerializeField] private Transform groundCheckPoint; // Reference to a child GameObject at the zombie's feet
+    
+    /// <summary>
+    /// Height in meters to maintain above the ground surface
+    /// </summary>
     [SerializeField] private float heightOffset = 0.1f; // How high above the ground to maintain the zombie
 
     [Header("References")]
+    /// <summary>
+    /// Reference to the zombie's animator for controlling movement animations
+    /// </summary>
     [SerializeField] private Animator animator;
     
     // Component references
+    /// <summary>
+    /// Reference to the NavMeshAgent component that handles pathfinding
+    /// </summary>
     private NavMeshAgent navMeshAgent;
+    
+    /// <summary>
+    /// Reference to the player's transform for targeting
+    /// </summary>
     private Transform playerTransform;
+    
+    /// <summary>
+    /// Reference to the zombie's health system for damage response
+    /// </summary>
     private HealthSystem healthSystem;
     
     // State tracking
+    /// <summary>
+    /// Whether the zombie is actively pursuing the player
+    /// </summary>
     private bool isChasing = false;
+    
+    /// <summary>
+    /// Whether the zombie's health is below the critical threshold
+    /// </summary>
     private bool isCriticallyInjured = false;
+    
+    /// <summary>
+    /// Time when the path was last updated
+    /// </summary>
     private float lastPathUpdateTime = 0f;
+    
+    /// <summary>
+    /// Current movement speed based on zombie type and health status
+    /// </summary>
     private float currentSpeed;
 
+    /// <summary>
+    /// Reference to the player's collider for accurate distance calculations
+    /// </summary>
     private Collider playerCollider;
+    
+    /// <summary>
+    /// Whether to target the closest point on player collider vs. player transform
+    /// </summary>
     private bool useClosestPoint = true;
     
+    /// <summary>
+    /// Whether the zombie is currently on the ground
+    /// </summary>
     private bool isGrounded = true;
+    
+    /// <summary>
+    /// Current vertical velocity when applying gravity
+    /// </summary>
     private float verticalVelocity = 0f;
     
+    /// <summary>
+    /// Initializes components, finds the player, and configures the NavMeshAgent
+    /// </summary>
     private void Awake()
     {
         // Get references to components
@@ -111,7 +225,10 @@ public class ZombieNavigation : MonoBehaviour
         isChasing = true;
     }
     
-    // Update the Update method to check for pause state
+    /// <summary>
+    /// Updates zombie movement, rotation, and animation each frame
+    /// Handles pause detection and death state
+    /// </summary>
     private void Update()
     {
         // Skip all processing when game is paused
@@ -136,6 +253,9 @@ public class ZombieNavigation : MonoBehaviour
         UpdateAnimations();
     }
     
+    /// <summary>
+    /// Checks the zombie's current health and updates movement speed if critically injured
+    /// </summary>
     private void CheckHealthStatus()
     {
         if (healthSystem != null)
@@ -154,6 +274,9 @@ public class ZombieNavigation : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Updates the zombie's movement speed based on type and injury status
+    /// </summary>
     private void UpdateMovementSpeed()
     {
         // If critically injured, use injured speed regardless of zombie type
@@ -188,7 +311,9 @@ public class ZombieNavigation : MonoBehaviour
         }
     }
     
-    // Update any additional methods that might be called during paused state
+    /// <summary>
+    /// Updates the navigation path to target the player at regular intervals
+    /// </summary>
     public void UpdatePath()
     {
         // Skip during pause
@@ -207,7 +332,9 @@ public class ZombieNavigation : MonoBehaviour
         navMeshAgent.SetDestination(targetPosition);
     }
     
-    // Update any additional methods that might be called during paused state
+    /// <summary>
+    /// Updates the zombie's rotation to face movement direction or player
+    /// </summary>
     public void UpdateRotation()
     {
         // Skip during pause
@@ -238,7 +365,9 @@ public class ZombieNavigation : MonoBehaviour
         }
     }
     
-    // Update any additional methods that might be called during paused state
+    /// <summary>
+    /// Updates zombie animation parameters based on movement and state
+    /// </summary>
     public void UpdateAnimations()
     {
         // Skip during pause
@@ -267,6 +396,10 @@ public class ZombieNavigation : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Determines the optimal target position on the player to navigate towards
+    /// </summary>
+    /// <returns>The position in world space to target for navigation</returns>
     private Vector3 GetTargetPosition()
     {
         // If we can use closest point targeting and player collider exists
@@ -292,6 +425,9 @@ public class ZombieNavigation : MonoBehaviour
         return playerTransform.position;
     }
     
+    /// <summary>
+    /// Stops the zombie's movement and clears its navigation path
+    /// </summary>
     public void StopMoving()
     {
         if (navMeshAgent != null && navMeshAgent.isActiveAndEnabled && navMeshAgent.isOnNavMesh)
@@ -306,6 +442,9 @@ public class ZombieNavigation : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Resumes the zombie's movement after being stopped
+    /// </summary>
     public void StartMoving()
     {
         if (navMeshAgent != null && navMeshAgent.isActiveAndEnabled)
@@ -363,7 +502,7 @@ public class ZombieNavigation : MonoBehaviour
     /// <summary>
     /// Checks if the zombie is a sprinter
     /// </summary>
-    /// <returns>True if the zombie is a sprinter, false otherwise</returns>
+    /// <returns>True if the zombie is a sprinter and not critically injured</returns>
     public bool IsSprinter()
     {
         return zombieType == ZombieType.Sprinter && !isCriticallyInjured;
@@ -372,7 +511,7 @@ public class ZombieNavigation : MonoBehaviour
     /// <summary>
     /// Checks if the zombie is a jogger
     /// </summary>
-    /// <returns>True if the zombie is a jogger, false otherwise</returns>
+    /// <returns>True if the zombie is a jogger and not critically injured</returns>
     public bool IsJogger()
     {
         return zombieType == ZombieType.Jogger && !isCriticallyInjured;
@@ -387,11 +526,11 @@ public class ZombieNavigation : MonoBehaviour
         return isCriticallyInjured;
     }
     
-    // Optional: Add this to visualize chase distances
+    /// <summary>
+    /// Visualizes zombie movement type and stopping distance in the editor
+    /// </summary>
     private void OnDrawGizmosSelected()
     {
-        // Removed pursuit distance visualization since zombies always chase
-        
         // Visual indicator for sprinting zombies
         if (zombieType == ZombieType.Sprinter && !isCriticallyInjured)
         {
@@ -407,6 +546,9 @@ public class ZombieNavigation : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Visualizes the current navigation target and path during gameplay
+    /// </summary>
     private void OnDrawGizmos()
     {
         // Only show in play mode and when selected
@@ -425,7 +567,9 @@ public class ZombieNavigation : MonoBehaviour
         }
     }
 
-    // Modified ApplyGravity method
+    /// <summary>
+    /// Applies gravity and handles ground detection for the zombie
+    /// </summary>
     private void ApplyGravity()
     {
         if (!applyGravity || navMeshAgent == null || !navMeshAgent.isActiveAndEnabled)
@@ -454,7 +598,10 @@ public class ZombieNavigation : MonoBehaviour
         }
     }
 
-    // Modify the IsGrounded method to be less aggressive with position changes
+    /// <summary>
+    /// Checks if the zombie is on the ground and adjusts its height if necessary
+    /// </summary>
+    /// <returns>True if the zombie is on the ground, false otherwise</returns>
     private bool IsGrounded()
     {
         // Use the ground check point if available, otherwise use transform position
@@ -519,5 +666,32 @@ public class ZombieNavigation : MonoBehaviour
         }
         
         return false;
+    }
+    
+    /// <summary>
+    /// Gets the current movement speed of the zombie
+    /// </summary>
+    /// <returns>Current speed in meters per second</returns>
+    public float GetCurrentSpeed()
+    {
+        return currentSpeed;
+    }
+    
+    /// <summary>
+    /// Gets the current zombie type (Walker, Jogger, Sprinter)
+    /// </summary>
+    /// <returns>The zombie's type as an enum value</returns>
+    public ZombieType GetZombieType()
+    {
+        return zombieType;
+    }
+    
+    /// <summary>
+    /// Checks if the zombie is currently chasing the player
+    /// </summary>
+    /// <returns>True if the zombie is in chase mode</returns>
+    public bool IsChasing()
+    {
+        return isChasing;
     }
 }

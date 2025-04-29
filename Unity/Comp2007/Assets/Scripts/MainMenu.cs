@@ -3,7 +3,9 @@ using UnityEngine.SceneManagement;
 using UnityEngine.Audio;
 using UnityEngine.UI;
 
+/// <summary>
 /// Handles main menu functionality including volume control and scene transitions
+/// </summary>
 public class MainMenu : MonoBehaviour
 {
     // References to Unity components
@@ -14,8 +16,10 @@ public class MainMenu : MonoBehaviour
     private const string MUSIC_VOLUME_PARAM = "MusicVolume";
     private const string SFX_VOLUME_PARAM = "SFXVolume";
 
+    /// <summary>
     /// Called when the script instance is being loaded
     /// Initializes volume settings and starts menu music
+    /// </summary>
     private void Start()
     {
         LoadVolume();  // Load saved volume settings
@@ -35,6 +39,10 @@ public class MainMenu : MonoBehaviour
         Cursor.lockState = CursorLockMode.None;
     }
 
+    /// <summary>
+    /// Handles input processing for the menu
+    /// Used primarily for handling Escape key to close settings
+    /// </summary>
     private void Update()
     {
         if (Input.GetKeyDown(KeyCode.Escape))
@@ -56,7 +64,10 @@ public class MainMenu : MonoBehaviour
         }
     }
 
+    /// <summary>
     /// Loads the main game scene when play button is clicked
+    /// Sets up necessary game state flags before scene transition
+    /// </summary>
     public void Play()
     {
         Debug.Log("Starting new game...");
@@ -74,13 +85,17 @@ public class MainMenu : MonoBehaviour
         SceneManager.LoadScene("Game");
     }
 
+    /// <summary>
     /// Quits the application when quit button is clicked
+    /// </summary>
     public void Quit()
     {
         Application.Quit();
     }
 
-    /// Opens the settings menu
+    /// <summary>
+    /// Opens the settings menu using the GameSettings component
+    /// </summary>
     public void OpenSettings()
     {
         if (gameSettings != null)
@@ -93,7 +108,10 @@ public class MainMenu : MonoBehaviour
         }
     }
 
+    /// <summary>
     /// Updates the music volume in the audio mixer
+    /// </summary>
+    /// <param name="volume">The new volume level for music (typically in decibels)</param>
     public void UpdateMusicVolume(float volume)
     {
         if (audioMixer != null)
@@ -106,7 +124,10 @@ public class MainMenu : MonoBehaviour
         }
     }
 
+    /// <summary>
     /// Updates the sound effects volume in the audio mixer
+    /// </summary>
+    /// <param name="volume">The new volume level for sound effects (typically in decibels)</param>
     public void UpdateSoundVolume(float volume)
     {
         if (audioMixer != null)
@@ -119,7 +140,9 @@ public class MainMenu : MonoBehaviour
         }
     }
 
-    /// Saves current volume settings to PlayerPrefs for persistence
+    /// <summary>
+    /// Saves current volume settings to PlayerPrefs for persistence between sessions
+    /// </summary>
     public void SaveVolume()
     {
         if (audioMixer == null)
@@ -137,7 +160,9 @@ public class MainMenu : MonoBehaviour
         PlayerPrefs.SetFloat("SFXVolume", sfxVolume);
     }
 
-    /// Loads saved volume settings from PlayerPrefs or uses defaults
+    /// <summary>
+    /// Loads saved volume settings from PlayerPrefs or uses defaults if not found
+    /// </summary>
     public void LoadVolume()
     {
         if (audioMixer == null)

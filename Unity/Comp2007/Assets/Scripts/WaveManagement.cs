@@ -3,42 +3,131 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
+/// <summary>
+/// Manages zombie wave spawning, progression, and difficulty scaling
+/// Controls zombie health, damage, movement types, and spawn rates based on wave number
+/// </summary>
 public class WaveManagement : MonoBehaviour
 {
     [Header("Wave Settings")]
+    /// <summary>
+    /// Current wave number, increments after each wave is completed
+    /// </summary>
     [SerializeField] private int currentWave = 0;
+    
+    /// <summary>
+    /// Number of zombies in the first wave
+    /// </summary>
     [SerializeField] private int zombiesPerWave = 4;          // Starting zombies
+    
+    /// <summary>
+    /// Additional health points zombies gain per wave
+    /// </summary>
     [SerializeField] private float zombieHealthIncrease = 5f; // Health increase per round
+    
+    /// <summary>
+    /// Starting health for zombies in the first wave
+    /// </summary>
     [SerializeField] private float baseZombieHealth = 100f;   // Starting zombie health
+    
+    /// <summary>
+    /// Maximum number of zombies that can spawn in a single wave
+    /// </summary>
     [SerializeField] private int maxZombiesPerWave = 500;     // Maximum zombies in any wave
+    
+    /// <summary>
+    /// Wave number at which the maximum zombie count per wave is reached
+    /// </summary>
     [SerializeField] private int waveToReachMaxZombies = 100; // Wave at which max zombies is reached
+    
+    /// <summary>
+    /// Maximum number of zombies that can be alive simultaneously
+    /// </summary>
     [SerializeField] private int maxZombiesAlive = 25;        // Maximum zombies alive at once
     
     [Header("Time Settings")]
+    /// <summary>
+    /// Delay in seconds between completing a wave and starting the next one
+    /// </summary>
     [SerializeField] private float timeBetweenWaves = 10f;    // Time between waves in seconds
+    
+    /// <summary>
+    /// Time in seconds between individual zombie spawns during a wave
+    /// </summary>
     [SerializeField] private float zombieSpawnInterval = 0.5f; // Time between zombie spawns in seconds
     
     [Header("References")]
+    /// <summary>
+    /// Reference to the ZombieSpawner component that handles actual zombie instantiation
+    /// </summary>
     [SerializeField] private ZombieSpawner zombieSpawner;
+    
+    /// <summary>
+    /// UI text element displaying the current wave number
+    /// </summary>
     [SerializeField] private TextMeshProUGUI waveText;
+    
+    /// <summary>
+    /// UI text element displaying the number of remaining zombies
+    /// </summary>
     [SerializeField] private TextMeshProUGUI zombieCountText;
 
     [Header("Zombie Type Distribution")]
+    /// <summary>
+    /// Wave at which 100% of zombies will be sprinters (fastest type)
+    /// </summary>
     [SerializeField] private int waveForAllSprinters = 45;    // Wave at which 100% of zombies will sprint
+    
+    /// <summary>
+    /// Wave at which sprinters begin to appear in the zombie population
+    /// </summary>
     [SerializeField] private int waveForSprintersStart = 15;  // Wave at which sprinters start appearing
+    
+    /// <summary>
+    /// Wave at which joggers begin to appear in the zombie population
+    /// </summary>
     [SerializeField] private int waveForJoggersStart = 5;     // Wave at which joggers start appearing
+    
+    /// <summary>
+    /// Wave at which 100% of zombies will be at least joggers
+    /// </summary>
     [SerializeField] private int waveForAllJoggers = 15;      // Wave at which 100% of zombies will be joggers or better
 
     [Header("Zombie Behavior")]
+    /// <summary>
+    /// Base damage dealt by zombies in the first wave
+    /// </summary>
     [SerializeField] private float baseZombieDamage = 10f; // Base damage for wave 1
+    
+    /// <summary>
+    /// Percentage damage increase per wave (0.01 = 1% increase per wave)
+    /// </summary>
     [SerializeField] private float zombieDamageIncreasePerWave = 0.01f; // 1% increase per wave
     
     // Wave state tracking
+    /// <summary>
+    /// Number of zombies still to be defeated in the current wave
+    /// </summary>
     private int zombiesRemainingInWave = 0;
+    
+    /// <summary>
+    /// Number of zombies currently active in the scene
+    /// </summary>
     private int zombiesAlive = 0;
+    
+    /// <summary>
+    /// Whether a wave is currently in progress
+    /// </summary>
     private bool waveInProgress = false;
+    
+    /// <summary>
+    /// Whether the game is currently active (false when game over)
+    /// </summary>
     private bool gameActive = true;
     
+    /// <summary>
+    /// Initializes the wave management system and starts the first wave
+    /// </summary>
     private void Start()
     {
         // Find references if not set in inspector
@@ -51,7 +140,9 @@ public class WaveManagement : MonoBehaviour
         StartCoroutine(StartNextWave());
     }
     
-    // Update the Update method to check for pause state
+    /// <summary>
+    /// Checks for wave completion and updates UI elements
+    /// </summary>
     private void Update()
     {
         // Skip all processing when game is paused
@@ -67,7 +158,10 @@ public class WaveManagement : MonoBehaviour
         }
     }
     
-    // Update coroutines to use unscaled time when paused
+    /// <summary>
+    /// Starts the next wave after a delay, incrementing difficulty and zombie count
+    /// </summary>
+    /// <returns>IEnumerator for coroutine execution</returns>
     private IEnumerator StartNextWave()
     {
         // Increment wave counter immediately
@@ -105,6 +199,11 @@ public class WaveManagement : MonoBehaviour
         StartCoroutine(SpawnZombiesForWave(zombiesThisWave));
     }
     
+    /// <summary>
+    /// Spawns zombies over time until the wave quota is reached, respecting the maximum alive zombies limit
+    /// </summary>
+    /// <param name="totalZombies">Total number of zombies to spawn in this wave</param>
+    /// <returns>IEnumerator for coroutine execution</returns>
     private IEnumerator SpawnZombiesForWave(int totalZombies)
     {
         int zombiesLeftToSpawn = totalZombies;
@@ -133,7 +232,12 @@ public class WaveManagement : MonoBehaviour
         }
     }
     
-    // Calculate number of zombies for wave (scales from initial zombiesPerWave to maxZombiesPerWave)
+    /// <summary>
+    /// Calculates the number of zombies to spawn for a specific wave
+    /// Scales linearly from initial zombiesPerWave to maxZombiesPerWave based on wave number
+    /// </summary>
+    /// <param name="wave">The wave number to calculate for</param>
+    /// <returns>The number of zombies to spawn for the specified wave</returns>
     private int CalculateZombiesForWave(int wave)
     {
         if (wave == 1)
@@ -152,7 +256,10 @@ public class WaveManagement : MonoBehaviour
         return Mathf.RoundToInt(Mathf.Lerp(zombiesPerWave, maxZombiesPerWave, progress));
     }
     
-    // Calculate health for zombies at current wave
+    /// <summary>
+    /// Calculates zombie health for the current wave based on base health and per-wave increase
+    /// </summary>
+    /// <returns>The health amount for zombies in the current wave</returns>
     private float CalculateZombieHealth()
     {
         return baseZombieHealth + (currentWave - 1) * zombieHealthIncrease;
@@ -198,19 +305,29 @@ public class WaveManagement : MonoBehaviour
         return Mathf.Clamp01(progress);
     }
 
+    /// <summary>
+    /// Calculates the damage multiplier for zombies in the current wave
+    /// </summary>
+    /// <returns>Damage multiplier that increases with wave number</returns>
     private float CalculateZombieDamageMultiplier()
     {
         // Start at 100% on wave 1, then increase by 1% per wave
         return 1f + (currentWave - 1) * zombieDamageIncreasePerWave;
     }
 
+    /// <summary>
+    /// Calculates the actual damage value for zombies in the current wave
+    /// </summary>
+    /// <returns>The damage amount zombies will deal in the current wave</returns>
     private float CalculateZombieDamage()
     {
         float rawDamage = baseZombieDamage * CalculateZombieDamageMultiplier();
         return Mathf.Round(rawDamage); // Round to nearest whole number
     }
     
-    // Call this when a zombie dies
+    /// <summary>
+    /// Called when a zombie dies to update counters and check for wave completion
+    /// </summary>
     public void ZombieDied()
     {
         zombiesAlive--;
@@ -218,7 +335,9 @@ public class WaveManagement : MonoBehaviour
         UpdateUI();
     }
     
-    // Update UI elements
+    /// <summary>
+    /// Updates UI elements with current wave information and zombie counts
+    /// </summary>
     private void UpdateUI()
     {
         if (waveText != null)
@@ -232,8 +351,11 @@ public class WaveManagement : MonoBehaviour
         }
     }
     
-    // This method is called by the HealthSystem of each zombie when they die
-    // Make sure to call this method in your zombie's health system's death event
+    /// <summary>
+    /// Registers a newly spawned zombie with the wave manager
+    /// Sets health, speed type, and damage values based on current wave difficulty
+    /// </summary>
+    /// <param name="zombie">The GameObject of the spawned zombie</param>
     public void RegisterZombie(GameObject zombie)
     {
         // Set the zombie's health based on the current wave
@@ -358,5 +480,32 @@ public class WaveManagement : MonoBehaviour
         
         // Return as array: [Walker%, Jogger%, Sprinter%]
         return new float[] { walkerPercent, joggerPercent, sprintPercent };
+    }
+    
+    /// <summary>
+    /// Gets the current wave number
+    /// </summary>
+    /// <returns>The current wave number</returns>
+    public int GetCurrentWave()
+    {
+        return currentWave;
+    }
+    
+    /// <summary>
+    /// Gets the number of zombies remaining to be defeated in the current wave
+    /// </summary>
+    /// <returns>Number of zombies remaining</returns>
+    public int GetRemainingZombies()
+    {
+        return zombiesRemainingInWave;
+    }
+    
+    /// <summary>
+    /// Sets the game active state to control wave spawning
+    /// </summary>
+    /// <param name="active">Whether the game is active (false stops wave spawning)</param>
+    public void SetGameActive(bool active)
+    {
+        gameActive = active;
     }
 }

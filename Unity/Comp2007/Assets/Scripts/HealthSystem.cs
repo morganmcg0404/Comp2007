@@ -1,6 +1,10 @@
 using UnityEngine;
 using UnityEngine.Events;
 
+/// <summary>
+/// Handles basic health functionality for any entity in the game
+/// including damage, healing, death, and related visual effects
+/// </summary>
 public class HealthSystem : MonoBehaviour
 {
     [Header("Health Settings")]
@@ -17,12 +21,19 @@ public class HealthSystem : MonoBehaviour
     [SerializeField] private UnityEvent onDeath;
     [SerializeField] private UnityEvent onDamage;
 
+    /// <summary>
+    /// Initializes the health system by setting current health to maximum
+    /// </summary>
     void Start()
     {
         // Initialize health to max at start
         currentHealth = maxHealth;
     }
 
+    /// <summary>
+    /// Applies damage to the entity and handles death if health reaches zero
+    /// </summary>
+    /// <param name="damageAmount">Amount of damage to apply</param>
     public void TakeDamage(float damageAmount)
     {
         // If already dead, don't process damage again
@@ -41,6 +52,10 @@ public class HealthSystem : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Restores health to the entity, not exceeding maximum health
+    /// </summary>
+    /// <param name="healAmount">Amount of health to restore</param>
     public void Heal(float healAmount)
     {
         if (!isDead)
@@ -49,6 +64,9 @@ public class HealthSystem : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Handles entity death, including effects, points, and object cleanup
+    /// </summary>
     void Die()
     {
         isDead = true;
@@ -87,17 +105,28 @@ public class HealthSystem : MonoBehaviour
         }
     }
     
-    // Public getter for current health (used by your shooting script)
+    /// <summary>
+    /// Gets the current health value
+    /// </summary>
+    /// <returns>The current health amount</returns>
     public float GetCurrentHealth()
     {
         return currentHealth;
     }
     
+    /// <summary>
+    /// Gets the maximum possible health value
+    /// </summary>
+    /// <returns>The maximum health amount</returns>
     public float GetMaxHealth()
     {
         return maxHealth;
     }
     
+    /// <summary>
+    /// Checks if the entity is dead
+    /// </summary>
+    /// <returns>True if entity is dead, false otherwise</returns>
     public bool IsDead()
     {
         return isDead;

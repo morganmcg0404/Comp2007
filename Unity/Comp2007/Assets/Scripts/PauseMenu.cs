@@ -5,37 +5,85 @@ using UnityEngine.EventSystems;
 using System.Linq;
 using UnityEngine.InputSystem;
 
+/// <summary>
+/// Manages the pause menu functionality including UI display, time manipulation, and cursor handling
+/// Handles transitioning between game, pause menu, and settings views
+/// </summary>
 public class PauseMenu : MonoBehaviour
 {
     [Header("Pause Menu UI")]
+    /// <summary>
+    /// Root GameObject containing all pause menu UI elements
+    /// </summary>
     [SerializeField] private GameObject pauseMenuUI;
+    
+    /// <summary>
+    /// Panel containing the main pause menu options (resume, settings, etc.)
+    /// </summary>
     [SerializeField] private GameObject pauseMenuPanel;
     
     [Header("Background Overlay")]
+    /// <summary>
+    /// Image used as darkened background overlay when game is paused
+    /// </summary>
     [SerializeField] private Image backgroundOverlay;
+    
+    /// <summary>
+    /// Alpha transparency value for the background overlay (0-1)
+    /// </summary>
     [SerializeField] private float overlayAlpha = 0.7f;
     
     [Header("Settings")]
+    /// <summary>
+    /// Key used to toggle the pause menu on/off
+    /// </summary>
     [SerializeField] private KeyCode pauseKey = KeyCode.Escape;
+    
+    /// <summary>
+    /// When enabled, shows additional debug warnings and error messages
+    /// </summary>
     [SerializeField] private bool debugMode = true; // Enable for debugging
     
     [Header("Menu Navigation")]
+    /// <summary>
+    /// Panel containing game settings options
+    /// </summary>
     [SerializeField] private GameObject settingsPanel; // Reference to the settings panel
+    
+    /// <summary>
+    /// Panel containing main pause menu options
+    /// </summary>
     [SerializeField] private GameObject mainMenuPanel; // Reference to the main pause menu panel
 
     // State tracking
+    /// <summary>
+    /// Tracks whether the game is currently paused
+    /// </summary>
     private bool isPaused = false;
+    
+    /// <summary>
+    /// Tracks whether the settings menu is currently open
+    /// </summary>
     private bool isInSettingsMenu = false;
     
-    // Store the original time scale
+    /// <summary>
+    /// Stores the original time scale to restore when unpausing
+    /// </summary>
     private float originalTimeScale;
     
-    // Reference to the event system
+    /// <summary>
+    /// Reference to the scene's EventSystem for UI navigation
+    /// </summary>
     private EventSystem eventSystem;
     
-    // Reference to settings script (optional)
+    /// <summary>
+    /// Reference to the external settings manager
+    /// </summary>
     private GameSettings settingsScript;
     
+    /// <summary>
+    /// Initializes the pause menu system and ensures it's hidden at game start
+    /// </summary>
     private void Awake()
     {
         // Store the original time scale (usually 1.0f)
@@ -73,6 +121,9 @@ public class PauseMenu : MonoBehaviour
             settingsPanel.SetActive(false);
     }
     
+    /// <summary>
+    /// Checks for pause input and ensures pause state consistency
+    /// </summary>
     private void Update()
     {
         // Safety check - if we think we're paused but the game is running, force pause
@@ -108,6 +159,9 @@ public class PauseMenu : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Toggles between paused and unpaused states
+    /// </summary>
     public void TogglePause()
     {
         if (isPaused)
@@ -120,6 +174,9 @@ public class PauseMenu : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Pauses the game by stopping time, showing the pause menu, and unlocking the cursor
+    /// </summary>
     public void PauseGame()
     {
         // Set paused state
@@ -163,6 +220,9 @@ public class PauseMenu : MonoBehaviour
         DisableGameplayControllers();
     }
     
+    /// <summary>
+    /// Resumes the game by restoring time, hiding the pause menu, and relocking the cursor
+    /// </summary>
     public void ResumeGame()
     {
         // Set unpaused state
@@ -201,6 +261,9 @@ public class PauseMenu : MonoBehaviour
     
     // Methods for UI buttons
     
+    /// <summary>
+    /// Handles the Resume button click in the pause menu
+    /// </summary>
     public void OnResumeButtonClicked()
     {
         // Clear any settings menu references first
@@ -216,24 +279,149 @@ public class PauseMenu : MonoBehaviour
         ResumeGame();
     }
     
+    /// <summary>
+    /// Handles the Main Menu button click, returning to the main menu scene
+    /// Properly destroys objects marked with DontDestroyOnLoad before scene transition
+    /// </summary>
     public void OnMainMenuButtonClicked()
     {
+        // Find and destroy any DontDestroyOnLoad objects that should be reset
+        GameObject player = GameObject.FindGameObjectWithTag("Player");
+        if (player != null)
+        {
+            Destroy(player);
+        }
+        
+        // Find and destroy persistent game objects EXCEPT audio managers
+        DestroyPersistentGameObjects("GameManager");
+        DestroyPersistentGameObjects("WeaponManager");
+        
         // Reset time scale before loading a new scene
         Time.timeScale = originalTimeScale;
         
+        // Reset the pause state in PauseManager
+        isPaused = false;
+        PauseManager.SetPaused(false);
+        
         // Load main menu scene
-        SceneManager.LoadScene("MainMenu"); // Replace with your actual main menu scene name
+        SceneManager.LoadScene("MainMenu");
     }
     
+    /// <summary>
+    /// Handles the Restart button click, reloading the current scene
+    /// Properly destroys objects marked with DontDestroyOnLoad before restarting
+    /// </summary>
     public void OnRestartButtonClicked()
     {
+        // Find and destroy any DontDestroyOnLoad objects that should be reset
+        GameObject player = GameObject.FindGameObjectWithTag("Player");
+        if (player != null)
+        {
+            Destroy(player);
+        }
+        
+        // Find and destroy persistent game objects EXCEPT audio managers
+        DestroyPersistentGameObjects("GameManager");
+        DestroyPersistentGameObjects("WeaponManager");
+        
         // Reset time scale before restarting
         Time.timeScale = originalTimeScale;
+        
+        // Reset the pause state in PauseManager
+        isPaused = false;
+        PauseManager.SetPaused(false);
+        
+        // Hide cursor if your game uses locked cursor
+        Cursor.visible = false;
+        Cursor.lockState = CursorLockMode.Locked;
         
         // Reload the current scene
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
     
+    /// <summary>
+    /// Finds and destroys persistent game objects with the specified tag or name
+    /// Used to clean up objects marked with DontDestroyOnLoad before scene reload
+    /// </summary>
+    /// <param name="identifierName">The tag or name of the objects to find and destroy</param>
+    /// <param name="useTag">If true, searches by tag; if false, searches by name</param>
+    private void DestroyPersistentGameObjects(string identifierName, bool useTag = false)
+    {
+        // Skip destroying audio managers and their cameras
+        if (identifierName == "SoundManager" || identifierName == "MusicManager" || 
+            identifierName == "AudioCamera" || identifierName == "AudioListener")
+        {
+            return;
+        }
+        
+        GameObject[] objectsToDestroy;
+        
+        if (useTag)
+        {
+            // Try to find objects by tag
+            try
+            {
+                objectsToDestroy = GameObject.FindGameObjectsWithTag(identifierName);
+            }
+            catch
+            {
+                Debug.LogWarning("Tag not found: " + identifierName);
+                return;
+            }
+        }
+        else
+        {
+            // Find objects by name - using the non-obsolete method
+            objectsToDestroy = GameObject.FindObjectsByType<GameObject>(FindObjectsSortMode.None)
+                .Where(obj => obj.name == identifierName).ToArray();
+        }
+        
+        foreach (GameObject obj in objectsToDestroy)
+        {
+            // Double-check to never destroy audio managers or their cameras
+            if (obj.GetComponent<SoundManager>() != null || 
+                obj.GetComponent<MusicManager>() != null ||
+                obj.GetComponent<Camera>() != null && 
+                (obj.name.Contains("Audio") || 
+                 IsCameraReferencedByAudioManager(obj.GetComponent<Camera>()))
+                )
+            {
+                continue;
+            }
+            
+            Destroy(obj);
+        }
+    }
+
+    /// <summary>
+    /// Checks if a camera is referenced by an audio manager
+    /// </summary>
+    /// <param name="cam">Camera to check</param>
+    /// <returns>True if the camera is used by an audio manager</returns>
+    private bool IsCameraReferencedByAudioManager(Camera cam)
+    {
+        if (cam == null) return false;
+        
+        // Check if SoundManager references this camera
+        SoundManager soundManager = SoundManager.GetInstance();
+        if (soundManager != null && soundManager.GetAudioCamera() == cam)
+        {
+            return true;
+        }
+        
+        // Check if MusicManager references this camera
+        MusicManager musicManager = MusicManager.GetInstance();
+        if (musicManager != null && musicManager.GetAudioCamera() == cam)
+        {
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /// <summary>
+    /// Handles the Quit button click, exiting the application
+    /// </summary>
     public void OnQuitButtonClicked()
     {
         // Quit the application (works in builds, not in editor)
@@ -245,6 +433,9 @@ public class PauseMenu : MonoBehaviour
         #endif
     }
     
+    /// <summary>
+    /// Handles the Settings button click, showing the settings menu
+    /// </summary>
     public void OnSettingsButtonClicked()
     {
         // Find the settings script if not already assigned
@@ -276,6 +467,10 @@ public class PauseMenu : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Event handler for when the settings menu is closed
+    /// Restores the main pause menu and maintains the paused state
+    /// </summary>
     private void OnSettingsMenuClosed()
     {
         // Unsubscribe from the event
@@ -306,6 +501,10 @@ public class PauseMenu : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Returns from settings view to the main pause menu
+    /// Used for backward compatibility
+    /// </summary>
     public void BackToMainPauseMenu()
     {
         // This method is now just for backward compatibility - we're using GameSettings directly
@@ -325,8 +524,10 @@ public class PauseMenu : MonoBehaviour
         }
     }
     
-    // Helper methods to disable/enable player input
-    // You may need to modify these based on your player controller implementation
+    /// <summary>
+    /// Disables gameplay-related controller scripts while paused
+    /// Preserves UI-related scripts for menu interaction
+    /// </summary>
     private void DisableGameplayControllers()
     {
         // Find and disable player controller scripts, but avoid UI-related ones
@@ -345,6 +546,9 @@ public class PauseMenu : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Re-enables gameplay controller scripts when unpausing
+    /// </summary>
     private void EnablePlayerInput()
     {
         // Re-enable player controller scripts
@@ -363,7 +567,10 @@ public class PauseMenu : MonoBehaviour
         }
     }
     
-    // Clears any pending input that may have accumulated during pause
+    /// <summary>
+    /// Clears any pending input that may have accumulated during pause
+    /// Resets both old and new input systems to prevent unwanted actions
+    /// </summary>
     private void ClearInputBuffers()
     {
         // Clear old input system buffers
@@ -383,7 +590,12 @@ public class PauseMenu : MonoBehaviour
         Time.timeScale = originalTimeScale;
     }
 
-    // Creates a brief cooldown period before accepting new inputs
+    /// <summary>
+    /// Creates a brief cooldown period before accepting new inputs
+    /// Prevents accidental input processing immediately after unpausing
+    /// </summary>
+    /// <param name="duration">Duration of the cooldown in seconds (real time)</param>
+    /// <returns>IEnumerator for coroutine execution</returns>
     private System.Collections.IEnumerator InputCooldownRoutine(float duration)
     {
         // Create a temporary component to disable player input

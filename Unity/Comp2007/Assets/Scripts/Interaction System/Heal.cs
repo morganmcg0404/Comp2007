@@ -43,6 +43,8 @@ public class Heal : MonoBehaviour, IInteractable
     /// Called when player interacts with the medkit
     /// Checks if player has enough points, then restores player health
     /// </summary>
+    /// <param name="interactor">The player/entity interacting with this object</param>
+    /// <returns>True if healing was applied successfully, false otherwise</returns>
     public bool Interact(Interactor interactor)
     {
         // Check if game is paused
@@ -63,6 +65,11 @@ public class Heal : MonoBehaviour, IInteractable
         // Check if player has enough points
         if (pointSystem.GetCurrentPoints() < pointCost)
         {
+            // Calculate how many more points the player needs
+            int pointsNeeded = pointCost - pointSystem.GetCurrentPoints();
+            
+            // Show insufficient points warning with specific amount needed
+            pointSystem.ShowInsufficientPointsWarning($"Need {pointsNeeded} more points!");
             return false;
         }
         
@@ -121,6 +128,7 @@ public class Heal : MonoBehaviour, IInteractable
             else
             {
                 // Player already at full health
+                pointSystem.ShowInsufficientPointsWarning("Health already full!");
                 return false;
             }
         }

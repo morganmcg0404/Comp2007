@@ -1,6 +1,10 @@
 using UnityEngine;
 using UnityEngine.UI;
+using System.Collections;
 
+/// <summary>
+/// Manages the crosshair UI element with dynamic sizing and target detection
+/// </summary>
 public class Crosshair : MonoBehaviour
 {
     [Header("References")]
@@ -32,6 +36,9 @@ public class Crosshair : MonoBehaviour
     private CharacterController playerController;
     private bool isTargetDetected = false;
     
+    /// <summary>
+    /// Initializes crosshair settings, references, and cursor state
+    /// </summary>
     void Start()
     {
         // Initialize crosshair
@@ -63,6 +70,9 @@ public class Crosshair : MonoBehaviour
         UpdateCrosshairSize(baseSize);
     }
 
+    /// <summary>
+    /// Updates crosshair size and color each frame based on player movement and target detection
+    /// </summary>
     void Update()
     {
         // Calculate target size based on player state
@@ -82,6 +92,10 @@ public class Crosshair : MonoBehaviour
         UpdateCrosshairColor();
     }
     
+    /// <summary>
+    /// Calculates the target crosshair size based on player movement
+    /// </summary>
+    /// <returns>The calculated target size clamped between minimum and maximum values</returns>
     private float CalculateTargetSize()
     {
         float targetSize = baseSize;
@@ -102,6 +116,10 @@ public class Crosshair : MonoBehaviour
         return Mathf.Clamp(targetSize, minSize, maxSize);
     }
     
+    /// <summary>
+    /// Updates the visual size of the crosshair UI element
+    /// </summary>
+    /// <param name="size">The new size to apply to the crosshair</param>
     private void UpdateCrosshairSize(float size)
     {
         if (crosshairCanvas != null)
@@ -110,6 +128,10 @@ public class Crosshair : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Checks if the player is looking at an enemy target
+    /// Updates isTargetDetected flag based on raycast results
+    /// </summary>
     private void DetectTarget()
     {
         isTargetDetected = false;
@@ -130,6 +152,10 @@ public class Crosshair : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Updates the crosshair color based on target detection status
+    /// Changes to targetColor when looking at an enemy, otherwise uses defaultColor
+    /// </summary>
     private void UpdateCrosshairColor()
     {
         if (crosshairImage != null && showTargetColor)
@@ -138,15 +164,24 @@ public class Crosshair : MonoBehaviour
         }
     }
     
-    // Public methods to be called by other scripts
-    
+    /// <summary>
+    /// Temporarily increases the crosshair size for visual feedback (e.g., when firing)
+    /// </summary>
+    /// <param name="amount">Amount to increase the crosshair size by</param>
+    /// <param name="duration">Duration in seconds before returning to normal size</param>
     public void TemporarilyExpandCrosshair(float amount, float duration)
     {
         // This could be called when firing a weapon
         StartCoroutine(ExpandCrosshairRoutine(amount, duration));
     }
     
-    private System.Collections.IEnumerator ExpandCrosshairRoutine(float amount, float duration)
+    /// <summary>
+    /// Coroutine that handles temporary expansion of the crosshair
+    /// </summary>
+    /// <param name="amount">Amount to increase the crosshair size by</param>
+    /// <param name="duration">Duration in seconds before returning to normal size</param>
+    /// <returns>IEnumerator for coroutine execution</returns>
+    private IEnumerator ExpandCrosshairRoutine(float amount, float duration)
     {
         float originalBaseSize = baseSize;
         baseSize += amount;
@@ -156,7 +191,10 @@ public class Crosshair : MonoBehaviour
         baseSize = originalBaseSize;
     }
     
-    // Helper to get if target is detected
+    /// <summary>
+    /// Gets whether the player is currently looking at an enemy target
+    /// </summary>
+    /// <returns>True if an enemy is detected in crosshair, false otherwise</returns>
     public bool IsTargetDetected()
     {
         return isTargetDetected;

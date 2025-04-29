@@ -19,6 +19,9 @@ public class ArmourPickup : MonoBehaviour, IInteractable
     private HealthArmourSystem _healthArmourSystem;                           // Reference to player's health/armour system
     private PointSystem pointSystem;                                          // Reference to the point system
     
+    /// <summary>
+    /// Initializes references and updates the interaction prompt with actual cost
+    /// </summary>
     private void Start()
     {
         pointSystem = PointSystem.Instance;
@@ -35,8 +38,10 @@ public class ArmourPickup : MonoBehaviour, IInteractable
     
     /// <summary>
     /// Called when player interacts with the armour plate pickup
-    /// Checks if player has enough points, then restores all armour plates 
+    /// Checks if player has enough points, then restores all armour plates
     /// </summary>
+    /// <param name="interactor">The player/entity interacting with this object</param>
+    /// <returns>True if interaction was successful, false otherwise</returns>
     public bool Interact(Interactor interactor)
     {
         // Check if game is paused
@@ -57,6 +62,11 @@ public class ArmourPickup : MonoBehaviour, IInteractable
         // Check if player has enough points
         if (pointSystem.GetCurrentPoints() < pointCost)
         {
+            // Calculate how many more points the player needs
+            int pointsNeeded = pointCost - pointSystem.GetCurrentPoints();
+            
+            // Show insufficient points warning with specific amount needed
+            pointSystem.ShowInsufficientPointsWarning($"Need {pointsNeeded} more points!");
             return false;
         }
         
@@ -85,7 +95,7 @@ public class ArmourPickup : MonoBehaviour, IInteractable
         {
             
             bool platesChanged = RestoreAllArmourPlates();
-            
+
             if (platesChanged)
             {
                 // Deduct points
@@ -116,6 +126,7 @@ public class ArmourPickup : MonoBehaviour, IInteractable
             else
             {
                 // Player already has maximum armour plates at full health
+                pointSystem.ShowInsufficientPointsWarning("Armor already full!");
                 return false;
             }
         }
@@ -128,6 +139,7 @@ public class ArmourPickup : MonoBehaviour, IInteractable
     
     /// <summary>
     /// Restores all armour plates to full capacity
+    /// First repairs any damaged existing plates, then adds new plates if needed
     /// </summary>
     /// <returns>True if any changes were made, false if all plates were already at maximum</returns>
     private bool RestoreAllArmourPlates()
