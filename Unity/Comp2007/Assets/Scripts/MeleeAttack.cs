@@ -8,7 +8,7 @@ public class MeleeAttack : MonoBehaviour
 {
     [Header("Melee Attack Settings")]
     [SerializeField] private float damage = 50f;
-    [SerializeField] private float attackRange = 2f;
+    [SerializeField] private float attackRange = 3f;
     [SerializeField] private float attackRate = 0.8f;
     [SerializeField] private float attackAngle = 60f; // Attack arc in degrees
     [SerializeField] private LayerMask hitLayers;
@@ -16,8 +16,8 @@ public class MeleeAttack : MonoBehaviour
     [Header("Attack Types")]
     [SerializeField] private bool primaryStab = true;
     [SerializeField] private bool secondarySwing = true;
-    [SerializeField] private float stabDamageMultiplier = 1.5f; // Stab deals more damage but is slower
-    [SerializeField] private float stabRateMultiplier = 0.7f;   // Slower rate for stab (multiplier < 1)
+    [SerializeField] private float stabDamageMultiplier = 1.5f;
+    [SerializeField] private float stabRateMultiplier = 0.7f;
     
     [Header("Effects")]
     [SerializeField] private AudioSource primaryAttackSound;
@@ -212,8 +212,25 @@ public class MeleeAttack : MonoBehaviour
         HealthSystem health = hit.collider.GetComponent<HealthSystem>();
         if (health != null)
         {
+            // Add points for hit if this is an enemy
+            if (hit.collider.CompareTag("Enemy") && PointSystem.Instance != null)
+            {
+                PointSystem.Instance.EnemyHit();
+            }
+            
+            // Track health before applying damage to detect kills
+            float healthBefore = health.GetCurrentHealth();
+            
             // Apply damage to the health system
             health.TakeDamage(damageAmount);
+            
+            // Check if the enemy was killed by this attack (wasn't dead before, is dead now)
+            if (hit.collider.CompareTag("Enemy") && healthBefore > 0 && health.IsDead() && PointSystem.Instance != null)
+            {
+                // Award additional points for knife kill (on top of regular kill points)
+                // The HealthSystem already awards normal kill points, so we add extra points here
+                PointSystem.Instance.AddPoints(100); // Extra 100 points for melee kills (200 total with regular kill points)
+            }
         
             // Basic hit information
             string attackType = damageAmount > damage ? "Stab" : "Swing";

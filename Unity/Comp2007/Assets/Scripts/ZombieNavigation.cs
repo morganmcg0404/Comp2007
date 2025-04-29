@@ -3,6 +3,13 @@ using UnityEngine.AI;
 
 public class ZombieNavigation : MonoBehaviour
 {
+    public enum ZombieType
+    {
+        Walker,
+        Jogger,
+        Sprinter
+    }
+
     [Header("Navigation Settings")]
     [SerializeField] private float updatePathInterval = 0.5f;
     [SerializeField] private float stoppingDistance = 1.5f;
@@ -10,11 +17,12 @@ public class ZombieNavigation : MonoBehaviour
     
     [Header("Movement Settings")]
     [SerializeField] private float walkSpeed = 3f;    // Normal walking speed
+    [SerializeField] private float jogSpeed = 5f;     // Medium jogger speed
     [SerializeField] private float sprintSpeed = 8f;  // Sprint speed for faster zombies
     [SerializeField] private float injuredSpeed = 1.5f; // Speed when critically injured
     
-    [Header("Sprint Behavior")]
-    [SerializeField] private bool isSprinter = false; // Whether this zombie is a sprinter
+    [Header("Zombie Type")]
+    [SerializeField] private ZombieType zombieType = ZombieType.Walker; // Default to walker
     [SerializeField] private float criticalHealthPercent = 0.1f; // 10% health threshold for slowing down
     
     [Header("Grounding Settings")]
@@ -76,7 +84,7 @@ public class ZombieNavigation : MonoBehaviour
         }
         
         // Set initial speed based on sprinter status
-        currentSpeed = isSprinter ? sprintSpeed : walkSpeed;
+        currentSpeed = sprintSpeed;
         
         // Configure NavMeshAgent
         if (navMeshAgent != null)
@@ -148,15 +156,29 @@ public class ZombieNavigation : MonoBehaviour
     
     private void UpdateMovementSpeed()
     {
-        // If critically injured, use injured speed regardless of sprinter status
+        // If critically injured, use injured speed regardless of zombie type
         if (isCriticallyInjured)
         {
             currentSpeed = injuredSpeed;
         }
         else
         {
-            // Otherwise use normal or sprint speed based on sprinter status
-            currentSpeed = isSprinter ? sprintSpeed : walkSpeed;
+            // Otherwise use appropriate speed based on zombie type
+            switch (zombieType)
+            {
+                case ZombieType.Walker:
+                    currentSpeed = walkSpeed;
+                    break;
+                case ZombieType.Jogger:
+                    currentSpeed = jogSpeed;
+                    break;
+                case ZombieType.Sprinter:
+                    currentSpeed = sprintSpeed;
+                    break;
+                default:
+                    currentSpeed = walkSpeed; // Fallback
+                    break;
+            }
         }
         
         // Apply to NavMeshAgent if available
@@ -230,11 +252,12 @@ public class ZombieNavigation : MonoBehaviour
             animator.SetFloat("Speed", speed);
             animator.SetBool("IsChasing", isChasing);
             
-            // Effectively sprinting only if both designated as sprinter AND not critically injured
-            bool effectivelySprinting = isSprinter && !isCriticallyInjured;
-            animator.SetBool("IsSprinting", effectivelySprinting);
+            // Set animation states based on zombie type and health
+            bool isJogging = zombieType == ZombieType.Jogger && !isCriticallyInjured;
+            bool isSprinting = zombieType == ZombieType.Sprinter && !isCriticallyInjured;
             
-            // Add injured animation state if you have one
+            animator.SetBool("IsJogging", isJogging);
+            animator.SetBool("IsSprinting", isSprinting);
             animator.SetBool("IsInjured", isCriticallyInjured);
             
             if (healthSystem != null)
@@ -294,13 +317,74 @@ public class ZombieNavigation : MonoBehaviour
         }
     }
     
-    // Method to set this zombie as a sprinter - used by WaveManagement
-    public void SetSprinter(bool sprinter)
+    /// <summary>
+    /// Sets the type of this zombie (Walker, Jogger, Sprinter)
+    /// </summary>
+    /// <param name="type">The zombie type to set</param>
+    public void SetZombieType(ZombieType type)
     {
-        isSprinter = sprinter;
-        
-        // Update speed based on both sprinter status and injury status
+        zombieType = type;
         UpdateMovementSpeed();
+    }
+    
+    /// <summary>
+    /// Called in OnDrawGizmosSelected to visualize the zombie's movement capabilities
+    /// </summary>
+    private void DrawSpeedGizmos()
+    {
+        // Draw colored lines based on zombie type
+        if (zombieType == ZombieType.Sprinter && !isCriticallyInjured)
+        {
+            // Red for sprinters
+            Gizmos.color = Color.red;
+            Gizmos.DrawLine(transform.position, transform.position + Vector3.up * 2);
+        }
+        else if (zombieType == ZombieType.Jogger && !isCriticallyInjured)
+        {
+            // Yellow for joggers
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawLine(transform.position, transform.position + Vector3.up * 1.5f);
+        }
+        else
+        {
+            // Green for walkers
+            Gizmos.color = Color.green;
+            Gizmos.DrawLine(transform.position, transform.position + Vector3.up * 1);
+        }
+        
+        // Draw magenta line for injured zombies
+        if (isCriticallyInjured)
+        {
+            Gizmos.color = Color.magenta;
+            Gizmos.DrawLine(transform.position, transform.position + Vector3.up * 1);
+        }
+    }
+    
+    /// <summary>
+    /// Checks if the zombie is a sprinter
+    /// </summary>
+    /// <returns>True if the zombie is a sprinter, false otherwise</returns>
+    public bool IsSprinter()
+    {
+        return zombieType == ZombieType.Sprinter && !isCriticallyInjured;
+    }
+    
+    /// <summary>
+    /// Checks if the zombie is a jogger
+    /// </summary>
+    /// <returns>True if the zombie is a jogger, false otherwise</returns>
+    public bool IsJogger()
+    {
+        return zombieType == ZombieType.Jogger && !isCriticallyInjured;
+    }
+    
+    /// <summary>
+    /// Checks if the zombie is critically injured and should move slowly
+    /// </summary>
+    /// <returns>True if critically injured, false otherwise</returns>
+    public bool IsCriticallyInjured()
+    {
+        return isCriticallyInjured;
     }
     
     // Optional: Add this to visualize chase distances
@@ -309,7 +393,7 @@ public class ZombieNavigation : MonoBehaviour
         // Removed pursuit distance visualization since zombies always chase
         
         // Visual indicator for sprinting zombies
-        if (isSprinter && !isCriticallyInjured)
+        if (zombieType == ZombieType.Sprinter && !isCriticallyInjured)
         {
             Gizmos.color = Color.green;
             Gizmos.DrawLine(transform.position, transform.position + Vector3.up * 2);
@@ -435,16 +519,5 @@ public class ZombieNavigation : MonoBehaviour
         }
         
         return false;
-    }
-
-    // Add this method to help with debugging position adjustments
-    public void DebugPosition()
-    {
-        if (navMeshAgent != null && navMeshAgent.isActiveAndEnabled)
-        {
-            Debug.Log($"Zombie {gameObject.name} - On NavMesh: {navMeshAgent.isOnNavMesh}, " +
-                     $"Position: {transform.position}, Agent position: {navMeshAgent.nextPosition}, " +
-                     $"Velocity: {navMeshAgent.velocity.magnitude}, Path pending: {navMeshAgent.pathPending}");
-        }
     }
 }

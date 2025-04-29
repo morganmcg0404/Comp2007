@@ -29,6 +29,10 @@ public class MainMenu : MonoBehaviour
         
         // Ensure time is running in the main menu
         Time.timeScale = 1f;
+        
+        // Make sure cursor is visible and unlocked in menu
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
     }
 
     private void Update()
@@ -55,8 +59,18 @@ public class MainMenu : MonoBehaviour
     /// Loads the main game scene when play button is clicked
     public void Play()
     {
+        Debug.Log("Starting new game...");
+        
         // Ensure time is running when starting the game
         Time.timeScale = 1f;
+        
+        // Reset the death flag when starting a new game
+        PlayerPrefs.SetInt("ComingFromDeath", 0);
+        
+        // Set a flag to ensure the main camera is enabled in the game scene
+        PlayerPrefs.SetInt("EnableMainCamera", 1);
+        PlayerPrefs.Save();
+        
         SceneManager.LoadScene("Game");
     }
 

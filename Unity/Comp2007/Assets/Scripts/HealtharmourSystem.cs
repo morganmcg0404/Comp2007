@@ -11,8 +11,8 @@ using System.Collections.Generic;
 public class HealthArmourSystem : MonoBehaviour
 {
     [Header("Health Settings")]
-    [SerializeField] private float _baseMaxHealth = 100f;    // Base maximum health value
-    [SerializeField] private float _currentHealth;           // Current health value
+    [SerializeField] private float _baseMaxHealth = 100f;
+    [SerializeField] private float _currentHealth;
     
     [Header("Health UI")]
     [SerializeField] private TextMeshProUGUI _currentHealthText;  // Text display for current health
@@ -36,14 +36,26 @@ public class HealthArmourSystem : MonoBehaviour
     [Header("Armour Plate Animation")]
     [SerializeField] private float _plateSlideAnimTime = 0.4f;                  // How long the slide animation takes
     
-    // Internal Armour tracking
+    [Header("Death Sequence")]
+    [SerializeField] private bool _isPlayerCharacter = false;        // Is this the main player?
+    [SerializeField] private float _returnToMenuDelay = 7f;          // How long before returning to main menu
+    [SerializeField] private string _mainMenuSceneName = "MainMenu"; // Scene name to load
+    [SerializeField] private GameObject _weaponHolder;               // Reference to the weapons container
+
+    [Header("Death Camera Settings")]
+    [SerializeField] private Transform _deathCameraTarget; // Optional target for camera to orbit
+    [SerializeField] private float _deathCameraRotationSpeed = 15f; // How fast the camera rotates
+    [SerializeField] private float _deathCameraDistance = 3.5f; // Distance from center point
+    [SerializeField] private float _deathCameraHeightOffset = 1f; // Height offset
+    [SerializeField] private Vector3 _deathCameraOffset = new Vector3(0f, 1f, 0f); // Offset from player position
+    
+    // Internal variables
     private float[] _ArmourPlateHealths = new float[3];
     private int _activeArmourPlates = 0;
     private Vector2[] _originalPlatePositions = new Vector2[3];                 // Store original positions for reset
-    
-    // Variables for health counter animation
     private int _displayedCurrentHealth;
     private int _displayedMaxHealth;
+    private bool _isDead = false;
     
     // Properties
     public float CurrentHealth => _currentHealth;
@@ -64,6 +76,22 @@ public class HealthArmourSystem : MonoBehaviour
         
         // Initialize Armour plates to empty
         InitializeArmourPlates();
+    }
+
+    // Add this to the Update method, or create it if it doesn't exist
+    private void Update()
+    {
+        // Check for death in case health was set to 0 by another means
+        if (_currentHealth <= 0 && !_isDead)
+        {
+            HandleDeath();
+        }
+        
+        // For testing only - press K to trigger instant death
+        if (Input.GetKeyDown(KeyCode.K))
+        {
+            _currentHealth = 0;  // Simply set health to 0 to trigger death check above
+        }
     }
 
     /// <summary>
@@ -107,6 +135,12 @@ public class HealthArmourSystem : MonoBehaviour
     /// <param name="incomingDamage">Base damage amount before reductions</param>
     public void TakeDamage(float incomingDamage)
     {   
+        // Don't process damage if already dead
+        if (_isDead) 
+        {
+            return;
+        }
+        
         float effectiveDamage = incomingDamage;
         float healthDamage = incomingDamage;
         
@@ -129,202 +163,156 @@ public class HealthArmourSystem : MonoBehaviour
         
         // Update UI displays
         UpdateHealthDisplay();
-    }
-
-    /// <summary>
-    /// Applies damage across Armour plates and updates UI
-    /// </summary>
-    /// <param name="ArmourDamage">Amount of damage to apply to Armour</param>
-    private void DamageArmourPlates(float ArmourDamage)
-    {
-        // Start with the last (right-most) active Armour plate
-        float remainingDamage = ArmourDamage;
         
-        // Process plates from right to left (highest index first)
-        for (int i = 2; i >= 0 && remainingDamage > 0; i--)
+        // Check for death
+        if (_currentHealth <= 0 && !_isDead)
         {
-            // Skip empty plates
-            if (_ArmourPlateHealths[i] <= 0) continue;
-            
-            // Calculate how much damage this plate can absorb
-            float damageToThisPlate = Mathf.Min(remainingDamage, _ArmourPlateHealths[i]);
-            float previousHealth = _ArmourPlateHealths[i];
-            
-            // Apply damage to the plate
-            _ArmourPlateHealths[i] -= damageToThisPlate;
-            remainingDamage -= damageToThisPlate;
-            
-            // Update the UI for this plate
-            UpdateArmourPlateUI(i, previousHealth > 0 && _ArmourPlateHealths[i] <= 0);
-            
-            // If plate is destroyed, reduce active count
-            if (_ArmourPlateHealths[i] <= 0)
-            {
-                _activeArmourPlates--;
-                
-                // If showing empty plates, update UI to show empty state
-                if (_showEmptyArmourPlates && i < _ArmourPlateImages.Count && _ArmourPlateImages[i] != null)
-                {
-                    _ArmourPlateImages[i].DOColor(_emptyArmourColor, _ArmourSlideAnimTime * 0.5f);
-                }
-            }
+            HandleDeath();
         }
     }
 
     /// <summary>
-    /// Animates an armor plate with a simple slide effect without bounce or shake
+    /// Handles player death sequence
     /// </summary>
-    private void AnimatePlateSlide(int plateIndex, bool isRefill, float intensityMultiplier = 1.0f)
+    private void HandleDeath()
     {
-        // Make sure we have valid UI references
-        if (plateIndex >= 0 && plateIndex < _ArmourPlateImages.Count && _ArmourPlateImages[plateIndex] != null)
+        // Only process death once
+        if (_isDead)
         {
-            // Kill any existing animations on this plate
-            DOTween.Kill(_ArmourPlateImages[plateIndex].rectTransform);
-            DOTween.Kill($"PlateScale_{plateIndex}");
-            DOTween.Kill($"PlateScaleReset_{plateIndex}");
-            DOTween.Kill($"PlateSlide_{plateIndex}");
-            
-            // Get the original position as the base
-            Vector2 originalPos = _originalPlatePositions[plateIndex];
-            
-            if (isRefill)
+            return;
+        }
+        
+        // Set isDead flag first thing to prevent multiple death sequences
+        _isDead = true;
+        
+        // Ensure health is exactly zero
+        if (_currentHealth > 0)
+        {
+            _currentHealth = 0;
+            UpdateHealthDisplay(true);  // Force immediate UI update
+        }
+        
+        // Only proceed with special death sequence if this is the player character
+        if (!_isPlayerCharacter)
+        {
+            return;
+        }
+        
+        // Set up camera rotation around player
+        SetupDeathCamera();
+        
+        // Unlock the mouse cursor so player can interact with the UI
+        UnlockMouseCursor();
+        
+        // Disable player controls (this also disables HUD and weapons)
+        DisablePlayerControls();
+        
+        // Force the tab menu to open
+        ForceTabMenuOpen();
+        
+        // Set up return to main menu
+        Invoke("ReturnToMainMenu", _returnToMenuDelay);
+    }
+
+    /// <summary>
+    /// Sets up the death camera to rotate around a configurable point
+    /// </summary>
+    private void SetupDeathCamera()
+    {
+        // Find main camera
+        Camera mainCamera = Camera.main;
+        if (mainCamera == null)
+        {
+            return;
+        }
+        
+        // First, disable the MouseLook script
+        MouseLook mouseLookScript = mainCamera.GetComponentInParent<MouseLook>();
+        if (mouseLookScript != null)
+        {
+            mouseLookScript.enabled = false;
+        }
+        else
+        {
+            // Try finding it on the player if not on camera
+            mouseLookScript = GetComponentInParent<MouseLook>();
+            if (mouseLookScript != null)
             {
-                // For refill: Simple fade-in animation instead of position movement
-                // This avoids any position changes that could cause shaking
-                
-                // First reset position exactly to original
-                _ArmourPlateImages[plateIndex].rectTransform.anchoredPosition = originalPos;
-                
-                // Then do a simple alpha fade-in animation
-                if (_ArmourPlateImages[plateIndex].color.a < 1.0f)
-                {
-                    Color startColor = _ArmourPlateImages[plateIndex].color;
-                    Color targetColor = new Color(
-                        _fullArmourColor.r, 
-                        _fullArmourColor.g, 
-                        _fullArmourColor.b, 
-                        1.0f
-                    );
-                    
-                    _ArmourPlateImages[plateIndex].DOColor(targetColor, _plateSlideAnimTime)
-                        .SetEase(Ease.InQuad)
-                        .SetId($"PlateColor_{plateIndex}");
-                }
-                
-                // Reset scale to ensure consistency
-                _ArmourPlateImages[plateIndex].transform.localScale = Vector3.one;
+                mouseLookScript.enabled = false;
             }
             else
             {
-                // For damage: Just do a quick pulse/scale effect instead of position movement
-                
-                // Reset position to original (in case it was moved by another animation)
-                _ArmourPlateImages[plateIndex].rectTransform.anchoredPosition = originalPos;
-                
-                // Quick scale pulse instead of position change
-                _ArmourPlateImages[plateIndex].transform
-                    .DOScale(Vector3.one * (1 - 0.1f * intensityMultiplier), _plateSlideAnimTime * 0.5f)
-                    .SetEase(Ease.OutQuad)
-                    .SetId($"PlateScale_{plateIndex}")
-                    .OnComplete(() => {
-                        // Return to normal scale
-                        _ArmourPlateImages[plateIndex].transform
-                            .DOScale(Vector3.one, _plateSlideAnimTime * 0.5f)
-                            .SetEase(Ease.InQuad)
-                            .SetId($"PlateScaleReset_{plateIndex}");
-                    });
+                // Try one more approach - find it anywhere in the scene using the newer API
+                mouseLookScript = FindAnyObjectByType<MouseLook>();
+                if (mouseLookScript != null)
+                {
+                    mouseLookScript.enabled = false;
+                }
             }
         }
+
+        // Ensure we disable all look scripts
+        DisableLookScripts();
+
+        // Check if we already have a CameraRotate component on the camera
+        CameraRotate cameraRotate = mainCamera.GetComponent<CameraRotate>();
+        if (cameraRotate == null)
+        {
+            // Add CameraRotate script if not present
+            cameraRotate = mainCamera.gameObject.AddComponent<CameraRotate>();
+        }
+        
+        // Determine the target for camera rotation
+        Transform deathTarget;
+        
+        // If a custom target is specified in the inspector, use that
+        if (_deathCameraTarget != null)
+        {
+            deathTarget = _deathCameraTarget;
+        }
+        else
+        {
+            // Otherwise create a new target at an offset from the player
+            GameObject targetObj = new GameObject("DeathCameraTarget");
+            targetObj.transform.position = transform.position + _deathCameraOffset;
+            deathTarget = targetObj.transform;
+        }
+        
+        // Configure the camera rotation
+        cameraRotate.ConfigureRotation(
+            deathTarget,                 // Target to orbit around
+            _deathCameraRotationSpeed,   // Rotation speed
+            _deathCameraDistance,        // Distance from target
+            _deathCameraHeightOffset,    // Height offset
+            true                         // Start rotating immediately
+        );
     }
     
     /// <summary>
-    /// Updates the visual display for a specific Armour plate
+    /// Specifically searches for and disables all look scripts
     /// </summary>
-    /// <param name="plateIndex">The index of the plate to update</param>
-    /// <param name="wasDestroyed">True if the plate was just destroyed</param>
-    private void UpdateArmourPlateUI(int plateIndex, bool wasDestroyed = false)
+    private void DisableLookScripts()
     {
-        // Ensure valid index and UI reference
-        if (plateIndex >= 0 && plateIndex < _ArmourPlateImages.Count && _ArmourPlateImages[plateIndex] != null)
+        // Get all MouseLook scripts in the scene and disable them
+        MouseLook[] allMouseLooks = FindObjectsByType<MouseLook>(FindObjectsSortMode.None);
+        foreach (MouseLook look in allMouseLooks)
         {
-            float fillRatio;
-            
-            // If plate is empty and we're showing empty plates, keep fill at 1 but with empty color
-            if (_ArmourPlateHealths[plateIndex] <= 0 && _showEmptyArmourPlates)
+            if (look != null && look.enabled)
             {
-                fillRatio = 1f;
-                _ArmourPlateImages[plateIndex].DOColor(_emptyArmourColor, _ArmourSlideAnimTime * 0.5f);
-            }
-            else
-            {
-                // Calculate fill ratio based on current health
-                fillRatio = Mathf.Max(0, _ArmourPlateHealths[plateIndex] / _maxArmourPlateHealth);
-                
-                // Animate the plate fill level
-                _ArmourPlateImages[plateIndex].DOFillAmount(fillRatio, _ArmourSlideAnimTime)
-                    .SetEase(Ease.OutQuad);
-                
-                // MODIFIED: Always use full armor color regardless of health percentage
-                if (fillRatio > 0)
-                {
-                    _ArmourPlateImages[plateIndex].DOColor(_fullArmourColor, _ArmourSlideAnimTime * 0.5f);
-                }
-                else if (!_showEmptyArmourPlates)
-                {
-                    // Hide the plate completely if we're not showing empty plates
-                    _ArmourPlateImages[plateIndex].DOFillAmount(0, _ArmourSlideAnimTime)
-                        .SetEase(Ease.OutQuad);
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Animates and updates the health counter displays
-    /// Uses two separate counters for current and max health
-    /// </summary>
-    /// <param name="immediate">If true, updates instantly without animation</param>
-    private void UpdateHealthDisplay(bool immediate = false)
-    {
-        int targetCurrentHealth = Mathf.RoundToInt(_currentHealth);
-        int targetMaxHealth = Mathf.RoundToInt(_baseMaxHealth);
-        
-        // Update current health counter
-        if (_currentHealthText != null)
-        {
-            if (immediate)
-            {
-                _displayedCurrentHealth = targetCurrentHealth;
-                _currentHealthText.text = targetCurrentHealth.ToString(_healthNumberFormat);
-            }
-            else
-            {
-                // Animate the current health counter
-                DOTween.To(() => _displayedCurrentHealth, x => {
-                    _displayedCurrentHealth = x;
-                    _currentHealthText.text = x.ToString(_healthNumberFormat);
-                }, targetCurrentHealth, _healthCounterAnimTime)
-                .SetEase(Ease.OutQuad);
+                look.enabled = false;
             }
         }
         
-        // Update max health counter
-        if (_maxHealthText != null)
+        // Look for scripts with "look" in the name as backup
+        MonoBehaviour[] allScripts = FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None);
+        foreach (MonoBehaviour script in allScripts)
         {
-            if (immediate)
+            if (script != null && script.enabled && 
+                (script.GetType().Name.ToLower().Contains("look") || 
+                 script.GetType().Name.ToLower().Contains("camera")) &&
+                !(script is CameraRotate)) // Don't disable our orbit script
             {
-                _displayedMaxHealth = targetMaxHealth;
-                _maxHealthText.text = targetMaxHealth.ToString(_healthNumberFormat);
-            }
-            else
-            {
-                // Animate the max health counter
-                DOTween.To(() => _displayedMaxHealth, x => {
-                    _displayedMaxHealth = x;
-                    _maxHealthText.text = x.ToString(_healthNumberFormat);
-                }, targetMaxHealth, _healthCounterAnimTime)
-                .SetEase(Ease.OutQuad);
+                script.enabled = false;
             }
         }
     }
@@ -478,5 +466,376 @@ public class HealthArmourSystem : MonoBehaviour
         }
         
         return false;
+    }
+
+    /// <summary>
+    /// Forces the tab menu to open on death
+    /// </summary>
+    private void ForceTabMenuOpen()
+    {
+        // Try to find the tab menu component using the newer API
+        TabMenu tabMenu = FindAnyObjectByType<TabMenu>();
+        if (tabMenu != null)
+        {
+            // Call the appropriate method to open the tab menu
+            tabMenu.ForceMenuOpen();
+        }
+        else
+        {
+            // Alternative approach: find a GameObject with TabMenu in the name
+            GameObject tabMenuObject = GameObject.Find("TabMenu");
+            if (tabMenuObject != null)
+            {
+                tabMenuObject.SetActive(true);
+            }
+            else
+            {
+                // Try one more approach - find any UI element that might be the tab menu
+                // Using the newer FindObjectsByType API
+                Canvas[] canvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+                foreach (Canvas canvas in canvases)
+                {
+                    if (canvas.gameObject.name.Contains("Tab") || 
+                        canvas.gameObject.name.Contains("Menu") ||
+                        canvas.gameObject.name.Contains("Pause"))
+                    {
+                        canvas.gameObject.SetActive(true);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Returns to the main menu after death
+    /// </summary>
+    private void ReturnToMainMenu()
+    {
+        // Store information that we're coming from a death sequence
+        PlayerPrefs.SetInt("ComingFromDeath", 1);
+        PlayerPrefs.Save();
+        
+        // Find and destroy all objects that might be marked with DontDestroyOnLoad
+        DestroyPersistentObjects();
+        
+        // Load the main menu scene
+        UnityEngine.SceneManagement.SceneManager.LoadScene(_mainMenuSceneName);
+    }
+    
+    /// <summary>
+    /// Destroys all objects that might be marked with DontDestroyOnLoad
+    /// </summary>
+    private void DestroyPersistentObjects()
+    {
+        // 1. Find and destroy the player root object
+        GameObject playerObject = this.gameObject;
+        Transform playerRoot = playerObject.transform;
+        
+        // Find the actual root parent that might have DontDestroyOnLoad
+        while (playerRoot.parent != null)
+        {
+            playerRoot = playerRoot.parent;
+        }
+        
+        // Log the player object we found
+        GameObject playerRootObject = playerRoot.gameObject;
+        
+        // 2. Find and handle the main camera separately
+        Camera mainCamera = Camera.main;
+        if (mainCamera != null)
+        {
+            Transform cameraRoot = mainCamera.transform;
+            
+            // Find the root of the camera hierarchy
+            while (cameraRoot.parent != null && cameraRoot.parent != playerRoot)
+            {
+                cameraRoot = cameraRoot.parent;
+            }
+            
+            // If the camera is not a child of the player (which would be destroyed with the player)
+            if (cameraRoot.parent != playerRoot)
+            {
+                GameObject cameraRootObject = cameraRoot.gameObject;
+                
+                // Destroy the camera root object if it's not part of the player
+                if (cameraRootObject != playerRootObject)
+                {
+                    Destroy(cameraRootObject);
+                }
+            }
+        }
+        
+        // 3. Check for any objects with "_DontDestroy" in their name or specific DontDestroy tag
+        GameObject[] allRootObjects = UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects();
+        foreach (GameObject obj in allRootObjects)
+        {
+            // Check if this is a persistent object by name or tag
+            if (obj.name.Contains("DontDestroy") || obj.CompareTag("DontDestroy") || 
+                obj.name.Contains("Persistent") || obj.name.Contains("Player"))
+            {
+                // Skip if it's the player object we already found
+                if (obj != playerRootObject)
+                {
+                    Destroy(obj);
+                }
+            }
+        }
+        
+        // 4. Finally destroy the player root object
+        Destroy(playerRootObject);
+    }
+
+    /// <summary>
+    /// Disables player controls and related systems upon death
+    /// </summary>
+    private void DisablePlayerControls()
+    {
+        // Disable weapon holder if referenced
+        if (_weaponHolder != null)
+        {
+            _weaponHolder.SetActive(false);
+        }
+        
+        // Find and disable player input system
+        PlayerInput playerInput = GetComponentInParent<PlayerInput>();
+        if (playerInput != null)
+        {
+            playerInput.enabled = false;
+        }
+        
+        // Find and disable character controller
+        CharacterController characterController = GetComponentInParent<CharacterController>();
+        if (characterController != null)
+        {
+            characterController.enabled = false;
+        }
+        
+        // Find and disable first-person movement script
+        MonoBehaviour[] scripts = GetComponentsInParent<MonoBehaviour>();
+        foreach (MonoBehaviour script in scripts)
+        {
+            if (script != null && (
+                script.GetType().Name.Contains("Movement") ||
+                script.GetType().Name.Contains("Controller") ||
+                script.GetType().Name.Contains("PlayerControls") ||
+                script.GetType().Name.Contains("FirstPerson")))
+            {
+                script.enabled = false;
+            }
+        }
+        
+        // Disable any HUD elements that should be hidden during death
+        // This assumes there might be a HUD manager or canvas we can find
+        Canvas[] canvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+        foreach (Canvas canvas in canvases)
+        {
+            if (canvas != null && (
+                canvas.name.Contains("HUD") ||
+                canvas.name.Contains("Crosshair") ||
+                canvas.name.Contains("Weapon") ||
+                canvas.name.Contains("Ammo")))
+            {
+                canvas.gameObject.SetActive(false);
+            }
+        }
+        
+        // Try to find and disable any action maps related to gameplay
+        PlayerInput[] allPlayerInputs = FindObjectsByType<PlayerInput>(FindObjectsSortMode.None);
+        foreach (PlayerInput input in allPlayerInputs)
+        {
+            if (input != null)
+            {
+                try
+                {
+                    // Try to disable the gameplay action map (common naming pattern)
+                    input.DeactivateInput();
+                }
+                catch (System.Exception)
+                {
+                    // Ignore exceptions here
+                }
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Updates the health display UI with current values
+    /// </summary>
+    /// <param name="immediate">If true, updates instantly without animation</param>
+    private void UpdateHealthDisplay(bool immediate = false)
+    {
+        // Target values from current state
+        int targetCurrentHealth = Mathf.RoundToInt(_currentHealth);
+        int targetMaxHealth = Mathf.RoundToInt(_baseMaxHealth);
+        
+        if (immediate)
+        {
+            // Immediate update without animation
+            _displayedCurrentHealth = targetCurrentHealth;
+            _displayedMaxHealth = targetMaxHealth;
+            
+            // Update UI text if available
+            if (_currentHealthText != null)
+            {
+                _currentHealthText.text = targetCurrentHealth.ToString(_healthNumberFormat);
+            }
+            
+            if (_maxHealthText != null)
+            {
+                _maxHealthText.text = targetMaxHealth.ToString(_healthNumberFormat);
+            }
+            
+            return;
+        }
+        
+        // Animate current health value changing
+        if (_currentHealthText != null)
+        {
+            DOTween.Kill(_currentHealthText);
+            DOTween.To(() => _displayedCurrentHealth, x => {
+                _displayedCurrentHealth = x;
+                _currentHealthText.text = Mathf.RoundToInt(x).ToString(_healthNumberFormat);
+            }, targetCurrentHealth, _healthCounterAnimTime);
+        }
+        
+        // Animate max health value changing (usually only happens with upgrades)
+        if (_maxHealthText != null && _displayedMaxHealth != targetMaxHealth)
+        {
+            DOTween.Kill(_maxHealthText);
+            DOTween.To(() => _displayedMaxHealth, x => {
+                _displayedMaxHealth = x;
+                _maxHealthText.text = Mathf.RoundToInt(x).ToString(_healthNumberFormat);
+            }, targetMaxHealth, _healthCounterAnimTime);
+        }
+    }
+    
+    /// <summary>
+    /// Applies damage to armor plates, starting with rightmost plate
+    /// </summary>
+    /// <param name="damageAmount">Amount of damage to apply to armor</param>
+    private void DamageArmourPlates(float damageAmount)
+    {
+        float remainingDamage = damageAmount;
+        
+        // Start with the highest index (rightmost) plate and work backwards
+        for (int i = 2; i >= 0 && remainingDamage > 0; i--)
+        {
+            // Skip empty plates
+            if (_ArmourPlateHealths[i] <= 0) 
+                continue;
+            
+            // Calculate damage to this plate
+            float damageTaken = Mathf.Min(_ArmourPlateHealths[i], remainingDamage);
+            _ArmourPlateHealths[i] -= damageTaken;
+            remainingDamage -= damageTaken;
+            
+            // Update UI for this plate
+            UpdateArmourPlateUI(i);
+            
+            // If plate was destroyed, reduce active count
+            if (_ArmourPlateHealths[i] <= 0)
+            {
+                _activeArmourPlates--;
+                
+                // Animate plate sliding away
+                AnimatePlateSlide(i, false);
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Updates the visual representation of an armor plate based on its current health
+    /// </summary>
+    /// <param name="plateIndex">Index of the plate to update (0-2)</param>
+    private void UpdateArmourPlateUI(int plateIndex)
+    {
+        if (plateIndex < 0 || plateIndex >= _ArmourPlateImages.Count || _ArmourPlateImages[plateIndex] == null)
+            return;
+            
+        Image plateImage = _ArmourPlateImages[plateIndex];
+        float plateHealth = _ArmourPlateHealths[plateIndex];
+        float healthPercent = plateHealth / _maxArmourPlateHealth;
+        
+        // Determine if this plate is empty, low, or normal
+        if (plateHealth <= 0)
+        {
+            if (_showEmptyArmourPlates)
+            {
+                // Show as empty outline
+                DOTween.To(() => plateImage.fillAmount, x => plateImage.fillAmount = x, 1f, _ArmourSlideAnimTime);
+                DOTween.To(() => plateImage.color, x => plateImage.color = x, _emptyArmourColor, _ArmourSlideAnimTime);
+            }
+            else
+            {
+                // Hide completely
+                DOTween.To(() => plateImage.fillAmount, x => plateImage.fillAmount = x, 0f, _ArmourSlideAnimTime);
+            }
+        }
+        else
+        {
+            // Animate the fill amount to match current health
+            DOTween.To(() => plateImage.fillAmount, x => plateImage.fillAmount = x, healthPercent, _ArmourSlideAnimTime);
+            
+            // Set color based on health percentage
+            Color targetColor = Color.Lerp(_lowArmourColor, _fullArmourColor, healthPercent);
+            DOTween.To(() => plateImage.color, x => plateImage.color = x, targetColor, _ArmourSlideAnimTime);
+        }
+    }
+    
+    /// <summary>
+    /// Animates an armor plate sliding in or out
+    /// </summary>
+    /// <param name="plateIndex">Index of the plate to animate</param>
+    /// <param name="isAddingPlate">True if adding plate, false if removing</param>
+    /// <param name="delay">Optional delay before animation starts</param>
+    private void AnimatePlateSlide(int plateIndex, bool isAddingPlate, float delay = 0f)
+    {
+        // Make sure we have a valid plate at this index
+        if (plateIndex < 0 || plateIndex >= _ArmourPlateImages.Count || _ArmourPlateImages[plateIndex] == null)
+            return;
+            
+        Image plateImage = _ArmourPlateImages[plateIndex];
+        RectTransform rectTransform = plateImage.rectTransform;
+        
+        // Get original and offset positions
+        Vector2 originalPos = _originalPlatePositions[plateIndex];
+        Vector2 offsetPos = originalPos + new Vector2(100f, 0); // 100 units to the right
+        
+        if (isAddingPlate)
+        {
+            // Reset to starting position (off-screen)
+            rectTransform.anchoredPosition = offsetPos;
+            
+            // Set initial state
+            if (_showEmptyArmourPlates)
+            {
+                plateImage.fillAmount = 1.0f;
+                plateImage.color = _fullArmourColor;
+            }
+            else
+            {
+                plateImage.fillAmount = _ArmourPlateHealths[plateIndex] / _maxArmourPlateHealth;
+                plateImage.color = _fullArmourColor;
+            }
+            
+            // Animate sliding in
+            rectTransform.DOAnchorPos(originalPos, _plateSlideAnimTime).SetDelay(delay);
+        }
+        else
+        {
+            // Animate sliding out
+            rectTransform.DOAnchorPos(offsetPos, _plateSlideAnimTime).SetDelay(delay);
+        }
+    }
+    
+    /// <summary>
+    /// Unlocks the mouse cursor for menu interaction
+    /// </summary>
+    private void UnlockMouseCursor()
+    {
+        // Make the cursor visible and unlock it
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
     }
 }

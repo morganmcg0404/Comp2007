@@ -113,10 +113,27 @@ public class QuickMeleeAttack : MonoBehaviour
             HealthSystem health = hit.collider.GetComponent<HealthSystem>();
             if (health != null)
             {
+                // Add points for hit if this is an enemy
+                if (hit.collider.CompareTag("Enemy") && PointSystem.Instance != null)
+                {
+                    PointSystem.Instance.EnemyHit();
+                }
+                
+                // Track health before applying damage to detect kills
+                float healthBefore = health.GetCurrentHealth();
+                
                 // Apply damage
                 health.TakeDamage(damage);
                 
-                // Debug message
+                // Check if the enemy was killed by this attack (wasn't dead before, is dead now)
+                if (hit.collider.CompareTag("Enemy") && healthBefore > 0 && health.IsDead() && PointSystem.Instance != null)
+                {
+                    // Award additional points for quick melee kill (on top of regular kill points)
+                    // The HealthSystem already awards normal kill points, so we add extra points here
+                    PointSystem.Instance.AddPoints(100); // Extra 100 points for melee kills (200 total with regular kill points)
+                }
+                
+                // Debug info
                 if (hit.collider.CompareTag("Enemy"))
                 {
                     float remainingHealth = health.GetCurrentHealth();

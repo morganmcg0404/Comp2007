@@ -9,6 +9,7 @@ public class PointSystem : MonoBehaviour
     [SerializeField] private int currentPoints = 500;       // Starting points
     [SerializeField] private int pointsPerHit = 10;         // Points earned per enemy hit
     [SerializeField] private int pointsPerKill = 100;       // Points earned per enemy kill
+    [SerializeField] private int killCount = 0;             // Total enemy kills
 
     [Header("Purchase Costs")]
     [SerializeField] private int ammoCost = 50;             // Cost for ammo purchase
@@ -77,6 +78,7 @@ public class PointSystem : MonoBehaviour
     public void EnemyKilled()
     {
         AddPoints(pointsPerKill);
+        killCount++;  // Track kill count
     }
 
     /// <summary>
@@ -110,6 +112,14 @@ public class PointSystem : MonoBehaviour
     public int GetCurrentPoints()
     {
         return currentPoints;
+    }
+
+    /// <summary>
+    /// Returns current kill count (for external access)
+    /// </summary>
+    public int GetKillCount()
+    {
+        return killCount;
     }
 
     #endregion

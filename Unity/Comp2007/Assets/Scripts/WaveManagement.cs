@@ -23,8 +23,13 @@ public class WaveManagement : MonoBehaviour
     [SerializeField] private TextMeshProUGUI waveText;
     [SerializeField] private TextMeshProUGUI zombieCountText;
 
+    [Header("Zombie Type Distribution")]
+    [SerializeField] private int waveForAllSprinters = 45;    // Wave at which 100% of zombies will sprint
+    [SerializeField] private int waveForSprintersStart = 15;  // Wave at which sprinters start appearing
+    [SerializeField] private int waveForJoggersStart = 5;     // Wave at which joggers start appearing
+    [SerializeField] private int waveForAllJoggers = 15;      // Wave at which 100% of zombies will be joggers or better
+
     [Header("Zombie Behavior")]
-    [SerializeField] private int waveForAllSprinters = 30; // Wave at which 100% of zombies will sprint
     [SerializeField] private float baseZombieDamage = 10f; // Base damage for wave 1
     [SerializeField] private float zombieDamageIncreasePerWave = 0.01f; // 1% increase per wave
     
@@ -153,10 +158,44 @@ public class WaveManagement : MonoBehaviour
         return baseZombieHealth + (currentWave - 1) * zombieHealthIncrease;
     }
 
+    /// <summary>
+    /// Calculates the chance for a zombie to be a sprinter based on wave number
+    /// </summary>
+    /// <param name="wave">Current wave number</param>
+    /// <returns>Probability (0.0-1.0) that a zombie will be a sprinter</returns>
     private float CalculateSprintChance(int wave)
     {
-        // Linear progression from 0% at wave 1 to 100% at waveForAllSprinters
-        return Mathf.Clamp01((float)(wave - 1) / (waveForAllSprinters - 1));
+        // No sprinters before the starting wave
+        if (wave < waveForSprintersStart)
+            return 0f;
+        
+        // All zombies are sprinters after the maximum wave
+        if (wave >= waveForAllSprinters)
+            return 1f;
+        
+        // Linear interpolation between starting wave and all-sprinters wave
+        float progress = (float)(wave - waveForSprintersStart) / (waveForAllSprinters - waveForSprintersStart);
+        return Mathf.Clamp01(progress);
+    }
+    
+    /// <summary>
+    /// Calculates the chance for a zombie to be at least a jogger based on wave number
+    /// </summary>
+    /// <param name="wave">Current wave number</param>
+    /// <returns>Probability (0.0-1.0) that a zombie will be a jogger or sprinter</returns>
+    private float CalculateJoggerChance(int wave)
+    {
+        // No joggers before the starting wave
+        if (wave < waveForJoggersStart)
+            return 0f;
+        
+        // All zombies are at least joggers after the maximum wave
+        if (wave >= waveForAllJoggers)
+            return 1f;
+        
+        // Linear interpolation between starting wave and all-joggers wave
+        float progress = (float)(wave - waveForJoggersStart) / (waveForAllJoggers - waveForJoggersStart);
+        return Mathf.Clamp01(progress);
     }
 
     private float CalculateZombieDamageMultiplier()
@@ -233,9 +272,8 @@ public class WaveManagement : MonoBehaviour
         ZombieNavigation zombieNav = zombie.GetComponent<ZombieNavigation>();
         if (zombieNav != null)
         {
-            float sprintChance = CalculateSprintChance(currentWave);
-            bool isSprinter = Random.value < sprintChance;
-            zombieNav.SetSprinter(isSprinter);
+            ZombieNavigation.ZombieType zombieType = DetermineZombieType(currentWave);
+            zombieNav.SetZombieType(zombieType);
         }
 
         ZombieAttack zombieAttack = zombie.GetComponent<ZombieAttack>();
@@ -265,5 +303,60 @@ public class WaveManagement : MonoBehaviour
             // Set the newly scaled damage - this will be rounded when actually applied
             zombieAttack.SetDamageMultiplier(damageMultiplier);
         }
+    }
+
+    /// <summary>
+    /// Determines the zombie type based on the current wave number and probability distributions
+    /// </summary>
+    /// <param name="wave">Current wave number</param>
+    /// <returns>The determined zombie type (Walker, Jogger, or Sprinter)</returns>
+    private ZombieNavigation.ZombieType DetermineZombieType(int wave)
+    {
+        // Get the chance for this zombie to be a sprinter or jogger
+        float sprintChance = CalculateSprintChance(wave);
+        float joggerChance = CalculateJoggerChance(wave);
+        
+        // Random roll to determine type
+        float randomValue = Random.value; // 0.0 to 1.0
+        
+        // Check for sprinter first (highest tier)
+        if (randomValue < sprintChance)
+        {
+            return ZombieNavigation.ZombieType.Sprinter;
+        }
+        // Then check for jogger (middle tier)
+        else if (randomValue < joggerChance)
+        {
+            return ZombieNavigation.ZombieType.Jogger;
+        }
+        // Otherwise default to walker (lowest tier)
+        else
+        {
+            return ZombieNavigation.ZombieType.Walker;
+        }
+    }
+    
+    /// <summary>
+    /// Gets the proportion of each zombie type for the current wave
+    /// Used for UI display and statistics
+    /// </summary>
+    /// <returns>Array with percentages: [Walker%, Jogger%, Sprinter%]</returns>
+    public float[] GetZombieTypeDistribution()
+    {
+        float sprintChance = CalculateSprintChance(currentWave);
+        float joggerChance = CalculateJoggerChance(currentWave);
+        
+        // Calculate the actual percentages of each type
+        float sprintPercent = sprintChance;
+        float joggerPercent = joggerChance - sprintChance; // Joggers are the portion between sprint chance and jogger chance
+        float walkerPercent = 1f - joggerChance; // Walkers are the remaining percentage
+        
+        // Ensure all percentages are valid (between 0 and 1)
+        sprintPercent = Mathf.Clamp01(sprintPercent);
+        joggerPercent = Mathf.Clamp01(joggerPercent);
+        walkerPercent = Mathf.Clamp01(walkerPercent);
+        
+        // Return as array: [Walker%, Jogger%, Sprinter%]
+        return new float[] { walkerPercent, joggerPercent, sprintPercent };
     }
 }

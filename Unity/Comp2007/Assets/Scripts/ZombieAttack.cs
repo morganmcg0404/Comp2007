@@ -22,7 +22,7 @@ public class ZombieAttack : MonoBehaviour
     [SerializeField] private AudioSource attackMissSound;
     
     // Wave-based damage scaling
-    private float waveDamageMultiplier = 1.0f; // Starts at 1x (100%)
+    private float waveDamageMultiplier = 1.0f;
     
     // Component references
     private ZombieNavigation zombieNav;
@@ -51,11 +51,9 @@ public class ZombieAttack : MonoBehaviour
             playerHealth = player.GetComponent<HealthArmourSystem>();
             if (playerHealth == null)
             {
-                // Try to find health system in children
                 playerHealth = player.GetComponentInChildren<HealthArmourSystem>();
             }
             
-            // Get player collider for distance checking
             playerCollider = player.GetComponent<Collider>();
             if (playerCollider == null)
             {
@@ -64,45 +62,40 @@ public class ZombieAttack : MonoBehaviour
         }
     }
 
-    // Update the Update method to check for pause state
     private void Update()
     {
         // Skip all processing when game is paused
         if (PauseManager.IsPaused())
             return;
             
-        // Skip if already attacking or on cooldown
-        if (isAttacking || !canAttack || playerTransform == null) return;
+        // Skip if already attacking or on cooldown or no player
+        if (isAttacking || !canAttack || playerTransform == null) 
+            return;
         
         // Check if player is in attack range
         float distanceToPlayer = GetDistanceToPlayer();
-        
         if (distanceToPlayer <= attackRange)
         {
-            // Start attack sequence
             TriggerAttack();
         }
     }
     
-    // Calculate actual distance to player, using collider if available
     private float GetDistanceToPlayer()
     {
         if (playerCollider != null)
         {
-            // Use the closest point on player's collider for more accurate distance
+            // Use closest point on player's collider for more accurate distance
             Vector3 closestPoint = playerCollider.ClosestPoint(transform.position);
             return Vector3.Distance(transform.position, closestPoint);
         }
         else if (playerTransform != null)
         {
-            // Fall back to transform position if no collider
             return Vector3.Distance(transform.position, playerTransform.position);
         }
         
         return float.MaxValue; // No player found
     }
     
-    // Start the attack sequence
     private void TriggerAttack()
     {
         if (currentAttackCoroutine != null)
@@ -113,7 +106,6 @@ public class ZombieAttack : MonoBehaviour
         currentAttackCoroutine = StartCoroutine(AttackSequence());
     }
     
-    // Update the AttackSequence coroutine for pause support
     private IEnumerator AttackSequence()
     {
         // Set attack state
@@ -133,12 +125,12 @@ public class ZombieAttack : MonoBehaviour
             animator.SetTrigger("Attack");
         }
         
-        if (attackSound != null && !PauseManager.IsPaused())
+        if (attackSound != null && !attackSound.isPlaying)
         {
             attackSound.Play();
         }
         
-        // Wait for attack windup (during animation) with pause support
+        // Wait for attack windup with pause support
         float elapsedTime = 0f;
         while (elapsedTime < attackWindupTime)
         {
@@ -150,37 +142,29 @@ public class ZombieAttack : MonoBehaviour
         }
         
         // Check if player is still in range at the moment of damage
-        float damageDistance = GetDistanceToPlayer();
-        bool playerInRange = damageDistance <= attackRange * 1.2f; // Slight buffer for fairness
+        bool playerInRange = GetDistanceToPlayer() <= attackRange * 1.2f;
         
-        if (playerInRange && playerHealth != null && !PauseManager.IsPaused())
+        if (playerInRange && playerHealth != null)
         {
-            // Calculate final damage with variations
+            // Calculate and apply damage
             float finalDamage = CalculateDamage();
-            
-            // Apply damage to player
             playerHealth.TakeDamage(finalDamage);
             
             // Visual and audio feedback for hit
-            if (attackHitSound != null && !PauseManager.IsPaused())
+            if (attackHitSound != null)
             {
                 attackHitSound.Play();
             }
             
-            if (bloodSplatterEffect != null && !PauseManager.IsPaused())
+            if (bloodSplatterEffect != null)
             {
                 bloodSplatterEffect.Play();
             }
-            
         }
-        else if (!PauseManager.IsPaused())
+        else if (attackMissSound != null)
         {
             // Player dodged the attack
-            if (attackMissSound != null)
-            {
-                attackMissSound.Play();
-            }
-            
+            attackMissSound.Play();
         }
         
         // Wait for attack recovery with pause support
@@ -219,26 +203,15 @@ public class ZombieAttack : MonoBehaviour
         currentAttackCoroutine = null;
     }
     
-    // Calculate damage with variations based on zombie type and randomness
     private float CalculateDamage()
     {
-        // Check if this is a sprinter zombie for damage bonus
-        bool isSprinter = false;
-        if (zombieNav != null)
-        {
-            // Use reflection to check the isSprinter field (since it's private)
-            var sprintField = zombieNav.GetType().GetField("isSprinter", 
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            if (sprintField != null)
-            {
-                isSprinter = (bool)sprintField.GetValue(zombieNav);
-            }
-        }
+        // Use the IsSprinter method directly rather than reflection
+        bool isSprinter = zombieNav != null && zombieNav.IsSprinter();
         
-        // Base damage calculation with wave multiplier
+        // Base damage with wave multiplier
         float damage = attackDamage * waveDamageMultiplier;
         
-        // Apply sprinter bonus if applicable
+        // Apply sprinter bonus
         if (isSprinter)
         {
             damage *= sprintDamageMultiplier;
@@ -248,11 +221,10 @@ public class ZombieAttack : MonoBehaviour
         float variation = Random.Range(minDamageVariation, maxDamageVariation);
         damage *= variation;
         
-        // Round to nearest whole number for display/application
         return Mathf.Round(damage);
     }
     
-    // Allow external components to adjust damage (e.g., for wave scaling)
+    // Public API methods for wave scaling
     public void SetAttackDamage(float newDamage)
     {
         attackDamage = newDamage;
@@ -261,11 +233,6 @@ public class ZombieAttack : MonoBehaviour
     public void SetDamageMultiplier(float multiplier)
     {
         waveDamageMultiplier = multiplier;
-    }
-
-    public float GetCurrentDamage()
-    {
-        return CalculateDamage();
     }
     
     // Visualize attack range in editor
