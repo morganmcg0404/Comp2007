@@ -107,6 +107,62 @@ public class ZombieNavigation : MonoBehaviour
     /// </summary>
     [SerializeField] private Animator animator;
     
+    [Header("Audio Settings")]
+    /// <summary>
+    /// Sound name for zombie ambient groaning/breathing
+    /// </summary>
+    [SerializeField] private string ambientSoundName = "ZombieAmbient";
+
+    /// <summary>
+    /// Minimum time between ambient sounds
+    /// </summary>
+    [SerializeField] private float ambientSoundMinInterval = 3f;
+
+    /// <summary>
+    /// Maximum time between ambient sounds
+    /// </summary>
+    [SerializeField] private float ambientSoundMaxInterval = 7f;
+
+    /// <summary>
+    /// Volume of ambient sounds (0-1)
+    /// </summary>
+    [SerializeField] private float ambientSoundVolume = 0.4f;
+
+    /// <summary>
+    /// Sound name for zombie footsteps
+    /// </summary>
+    [SerializeField] private string footstepSoundName = "WalkFootstep";
+
+    /// <summary>
+    /// Time interval between footstep sounds for walking zombies
+    /// </summary>
+    [SerializeField] private float walkFootstepInterval = 0.65f;
+
+    /// <summary>
+    /// Time interval between footstep sounds for jogging zombies
+    /// </summary>
+    [SerializeField] private float jogFootstepInterval = 0.45f;
+
+    /// <summary>
+    /// Time interval between footstep sounds for sprinting zombies
+    /// </summary>
+    [SerializeField] private float sprintFootstepInterval = 0.3f;
+
+    /// <summary>
+    /// Volume of footstep sounds (0-1)
+    /// </summary>
+    [SerializeField] private float footstepSoundVolume = 0.5f;
+
+    /// <summary>
+    /// Audio mixer group for zombie sounds
+    /// </summary>
+    [SerializeField] private string audioMixerGroup = "SFX";
+
+    // Private tracking variables for sound timing
+    private float nextAmbientSoundTime;
+    private float nextFootstepTime;
+    private float currentFootstepInterval;
+
     // Component references
     /// <summary>
     /// Reference to the NavMeshAgent component that handles pathfinding
@@ -223,6 +279,9 @@ public class ZombieNavigation : MonoBehaviour
         
         // Set isChasing to true immediately
         isChasing = true;
+
+        // Initialize sound timers
+        InitializeSoundTimers();
     }
     
     /// <summary>
@@ -251,6 +310,7 @@ public class ZombieNavigation : MonoBehaviour
         UpdatePath();
         UpdateRotation();
         UpdateAnimations();
+        UpdateZombieSounds();
     }
     
     /// <summary>
@@ -309,6 +369,9 @@ public class ZombieNavigation : MonoBehaviour
         {
             navMeshAgent.speed = currentSpeed;
         }
+
+        // Update footstep interval based on new speed
+        UpdateFootstepInterval();
     }
     
     /// <summary>
@@ -693,5 +756,120 @@ public class ZombieNavigation : MonoBehaviour
     public bool IsChasing()
     {
         return isChasing;
+    }
+
+    /// <summary>
+    /// Initializes sound timing variables to start with random offsets
+    /// </summary>
+    private void InitializeSoundTimers()
+    {
+        // Set first ambient sound with slight delay and random offset
+        nextAmbientSoundTime = Time.time + Random.Range(1f, 3f);
+        
+        // Randomize footstep pattern between zombies
+        nextFootstepTime = Time.time + Random.Range(0f, 0.5f);
+        
+        // Set initial footstep interval based on type
+        UpdateFootstepInterval();
+    }
+
+    /// <summary>
+    /// Updates the footstep interval based on zombie type and speed
+    /// </summary>
+    private void UpdateFootstepInterval()
+    {
+        if (isCriticallyInjured)
+        {
+            currentFootstepInterval = walkFootstepInterval * 1.2f; // Injured zombies have slower footsteps
+        }
+        else if (zombieType == ZombieType.Sprinter)
+        {
+            currentFootstepInterval = sprintFootstepInterval;
+        }
+        else if (zombieType == ZombieType.Jogger)
+        {
+            currentFootstepInterval = jogFootstepInterval;
+        }
+        else // Walker
+        {
+            currentFootstepInterval = walkFootstepInterval;
+        }
+    }
+
+    /// <summary>
+    /// Updates and plays zombie sounds (ambient and footsteps)
+    /// </summary>
+    private void UpdateZombieSounds()
+    {
+        // Skip sounds if zombie is dead or game is paused
+        if (PauseManager.IsPaused() || (healthSystem != null && healthSystem.IsDead()))
+            return;
+        
+        // Handle ambient sounds
+        if (Time.time >= nextAmbientSoundTime)
+        {
+            PlayZombieSound(ambientSoundName, ambientSoundVolume);
+            // Set next ambient sound time with random interval
+            nextAmbientSoundTime = Time.time + Random.Range(ambientSoundMinInterval, ambientSoundMaxInterval);
+        }
+        
+        // Handle footstep sounds when moving
+        if (navMeshAgent != null && navMeshAgent.velocity.magnitude > 0.1f && isGrounded)
+        {
+            if (Time.time >= nextFootstepTime)
+            {
+                // Play footstep sound
+                PlayZombieSound(footstepSoundName, footstepSoundVolume * 0.7f);
+                
+                // Set next footstep time
+                nextFootstepTime = Time.time + currentFootstepInterval;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Plays a sound attached to the zombie with mixer support
+    /// </summary>
+    /// <param name="soundName">Name of the sound in SoundLibrary</param>
+    /// <param name="volume">Volume level (default 1.0)</param>
+    private void PlayZombieSound(string soundName, float volume = 1.0f)
+    {
+        if (string.IsNullOrEmpty(soundName)) return;
+
+        SoundManager soundManager = SoundManager.GetInstance();
+        if (soundManager == null || soundManager.GetSoundLibrary() == null) 
+        {
+            Debug.LogWarning("SoundManager or SoundLibrary not available");
+            return;
+        }
+
+        AudioClip clip = soundManager.GetSoundLibrary().GetClipFromName(soundName);
+        if (clip == null) return;
+
+        // Create the audio source as child of zombie
+        GameObject audioObj = new GameObject(soundName + "_Sound");
+        audioObj.transform.SetParent(transform);
+        audioObj.transform.localPosition = Vector3.zero;
+
+        AudioSource audioSource = audioObj.AddComponent<AudioSource>();
+        audioSource.clip = clip;
+        audioSource.volume = volume;
+        audioSource.spatialBlend = 1.0f; // Full 3D sound
+        audioSource.rolloffMode = AudioRolloffMode.Linear;
+        audioSource.maxDistance = 20f;   // Can be heard from reasonable distance
+
+        // Slightly vary pitch for more natural sound
+        audioSource.pitch = Random.Range(0.9f, 1.1f);
+
+        // Set audio mixer group if SoundManager provides it
+        if (soundManager.GetAudioMixerGroup(audioMixerGroup) != null) 
+        {
+            audioSource.outputAudioMixerGroup = soundManager.GetAudioMixerGroup(audioMixerGroup);
+        }
+
+        audioSource.Play();
+
+        // Clean up after playing
+        Destroy(audioObj, clip.length + 0.1f);
     }
 }

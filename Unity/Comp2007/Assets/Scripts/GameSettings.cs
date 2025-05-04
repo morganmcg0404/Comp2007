@@ -70,6 +70,22 @@ public class GameSettings : MonoBehaviour
     [SerializeField] private Color selectedTabColor = new Color(1f, 1f, 1f, 1f);
     [SerializeField] private Color unselectedTabColor = new Color(0.7f, 0.7f, 0.7f, 1f);
     
+    [Header("Confirmation Dialog")]
+    /// <summary>
+    /// Dialog panel that appears when asking to save settings
+    /// </summary>
+    [SerializeField] private GameObject confirmSaveDialog;
+
+    /// <summary>
+    /// Button for confirming save action
+    /// </summary>
+    [SerializeField] private Button saveYesButton;
+
+    /// <summary>
+    /// Button for rejecting save action
+    /// </summary>
+    [SerializeField] private Button saveNoButton;
+    
     /// <summary>
     /// Event triggered when the settings menu is closed
     /// Useful for notifying other systems (like PauseMenu) to update their state
@@ -115,7 +131,8 @@ public class GameSettings : MonoBehaviour
         // Check for Escape key press to close settings
         if (isVisible && Input.GetKeyUp(backKey))
         {
-            CloseSettingsMenu();
+            // Show confirmation dialog instead of closing directly
+            ShowSaveConfirmationDialog();
         }
     }
     
@@ -170,43 +187,11 @@ public class GameSettings : MonoBehaviour
     }
     
     /// <summary>
-    /// Closes the settings menu, saves all settings, and restores appropriate time scale
+    /// Closes the settings menu, with option to save settings
     /// </summary>
     public void CloseSettingsMenu()
     {
-        if (settingsMenuUI != null)
-        {
-            // Save settings before closing
-            SaveSettings();
-            
-            // Hide the menu
-            settingsMenuUI.SetActive(false);
-            isVisible = false;
-            
-            // Check if we're in the main menu scene
-            bool isMainMenu = SceneManager.GetActiveScene().name == "MainMenu";
-            
-            // Only pause the game if we're NOT in the main menu
-            if (!isMainMenu)
-            {
-                // This is needed because some event might be resuming the game
-                Time.timeScale = 0f;
-                PauseManager.SetPaused(true);
-            }
-            else
-            {
-                // Ensure time is running in the main menu
-                Time.timeScale = 1f;
-                if (PauseManager.IsPaused())
-                {
-                    PauseManager.SetPaused(false);
-                }
-            }
-            
-            // Trigger the close event to notify PauseMenu
-            if (OnSettingsMenuClosed != null)
-                OnSettingsMenuClosed.Invoke();
-        }
+        ShowSaveConfirmationDialog();
     }
     
     /// <summary>
@@ -481,25 +466,30 @@ public class GameSettings : MonoBehaviour
     /// </summary>
     private void InitializeGameplaySettings()
     {
+        // Get fresh values from PlayerPrefs since we may have just updated them
+        float currentMouseSensitivity = PlayerPrefs.GetFloat("MouseSensitivity", 1.0f);
+        float currentAimSensitivity = PlayerPrefs.GetFloat("AimSensitivity", 0.7f);
+        float currentFOV = PlayerPrefs.GetFloat("FOV", 60f);
+
         if (mouseSensitivitySlider != null)
         {
-            mouseSensitivitySlider.value = PlayerPrefs.GetFloat("MouseSensitivity", 1.0f);
+            mouseSensitivitySlider.value = currentMouseSensitivity;
             if (mouseSensitivityInput != null)
-                mouseSensitivityInput.text = mouseSensitivitySlider.value.ToString("F1", CultureInfo.InvariantCulture);
+                mouseSensitivityInput.text = currentMouseSensitivity.ToString("F1", CultureInfo.InvariantCulture);
         }
             
         if (aimSensitivitySlider != null)
         {
-            aimSensitivitySlider.value = PlayerPrefs.GetFloat("AimSensitivity", 0.7f);
+            aimSensitivitySlider.value = currentAimSensitivity;
             if (aimSensitivityInput != null)
-                aimSensitivityInput.text = aimSensitivitySlider.value.ToString("F1", CultureInfo.InvariantCulture);
+                aimSensitivityInput.text = currentAimSensitivity.ToString("F1", CultureInfo.InvariantCulture);
         }
             
         if (fovSlider != null)
         {
-            fovSlider.value = PlayerPrefs.GetFloat("FOV", 60f);
+            fovSlider.value = currentFOV;
             if (fovInput != null)
-                fovInput.text = Mathf.RoundToInt(fovSlider.value).ToString(); // Changed to integer
+                fovInput.text = Mathf.RoundToInt(currentFOV).ToString();
         }
         
         if (invertYToggle != null)
@@ -532,11 +522,39 @@ public class GameSettings : MonoBehaviour
     /// </summary>
     public void OnSettingsOpened()
     {
-        // Refresh UI with current values
+        // First, check for any active MouseLook components to get real-time values
+        UpdateSensitivityFromActiveMouseLook();
+
+        // Then refresh UI with current values
         InitializeUI();
         
         // Always show gameplay tab first
         ShowGameplayTab();
+    }
+
+    /// <summary>
+    /// Updates sensitivity slider with the value from the active MouseLook component
+    /// Ensures UI matches actual in-game settings
+    /// </summary>
+    private void UpdateSensitivityFromActiveMouseLook()
+    {
+        // Find any active MouseLook component in the scene
+        MouseLook[] mouseLooks = FindObjectsByType<MouseLook>(FindObjectsSortMode.None);
+        
+        if (mouseLooks != null && mouseLooks.Length > 0)
+        {
+            // Use the first active MouseLook component's sensitivity
+            float currentSensitivity = mouseLooks[0].GetCurrentSensitivity();
+            
+            // Update PlayerPrefs with this value
+            PlayerPrefs.SetFloat("MouseSensitivity", currentSensitivity);
+            
+            // Update the UI slider (will be applied in InitializeUI)
+            if (mouseSensitivitySlider != null)
+            {
+                mouseSensitivitySlider.value = currentSensitivity;
+            }
+        }
     }
     
     /// <summary>
@@ -790,13 +808,17 @@ public class GameSettings : MonoBehaviour
     /// <param name="sensitivity">The new sensitivity value</param>
     public void SetMouseSensitivity(float sensitivity)
     {
+        // Store the value in PlayerPrefs
         PlayerPrefs.SetFloat("MouseSensitivity", sensitivity);
         
-        // Update any active MouseLook components
+        // Apply to all active MouseLook components in the scene immediately
         MouseLook[] mouseLooks = FindObjectsByType<MouseLook>(FindObjectsSortMode.None);
         foreach (MouseLook mouseLook in mouseLooks)
         {
-            mouseLook.SetSensitivity(sensitivity);
+            if (mouseLook != null)
+            {
+                mouseLook.SetSensitivity(sensitivity);
+            }
         }
     }
     
@@ -961,6 +983,16 @@ public class GameSettings : MonoBehaviour
         
         if (sfxVolumeSlider != null)
             sfxVolumeSlider.onValueChanged.AddListener(SetSFXVolume);
+        
+        // Add listener for mouse sensitivity and FOV to apply immediately
+        if (mouseSensitivitySlider != null)
+            mouseSensitivitySlider.onValueChanged.AddListener(SetMouseSensitivity);
+        
+        if (fovSlider != null)
+            fovSlider.onValueChanged.AddListener(SetFOV);
+        
+        if (aimSensitivitySlider != null)
+            aimSensitivitySlider.onValueChanged.AddListener(SetAimSensitivity);
     }
     
     /// <summary>
@@ -1111,6 +1143,120 @@ public class GameSettings : MonoBehaviour
         foreach (AimDownSights aim in aimScripts)
         {
             aim.SetToggleMode(toggleAim);
+        }
+    }
+    
+    /// <summary>
+    /// Shows the confirmation dialog asking if user wants to save settings
+    /// </summary>
+    private void ShowSaveConfirmationDialog()
+    {
+        // If no dialog UI is assigned, just close with saving
+        if (confirmSaveDialog == null)
+        {
+            SaveAndClose();
+            return;
+        }
+
+        // Show the dialog
+        confirmSaveDialog.SetActive(true);
+        
+        // Setup button listeners (removing any existing ones first)
+        if (saveYesButton != null)
+        {
+            saveYesButton.onClick.RemoveAllListeners();
+            saveYesButton.onClick.AddListener(SaveAndClose);
+        }
+        
+        if (saveNoButton != null)
+        {
+            saveNoButton.onClick.RemoveAllListeners();
+            saveNoButton.onClick.AddListener(CloseWithoutSaving);
+        }
+        
+        // Focus the Yes button by default
+        if (saveYesButton != null)
+        {
+            saveYesButton.Select();
+        }
+    }
+
+    /// <summary>
+    /// Saves settings and closes the settings menu
+    /// </summary>
+    private void SaveAndClose()
+    {
+        // Hide the confirmation dialog if it was showing
+        if (confirmSaveDialog != null)
+        {
+            confirmSaveDialog.SetActive(false);
+        }
+        
+        // Save settings and close menu
+        SaveSettings();
+        CloseSettingsMenuInternal(true);
+    }
+
+    /// <summary>
+    /// Closes the settings menu without saving
+    /// </summary>
+    private void CloseWithoutSaving()
+    {
+        // Hide the confirmation dialog if it was showing
+        if (confirmSaveDialog != null)
+        {
+            confirmSaveDialog.SetActive(false);
+        }
+        
+        // Just close the menu without saving
+        CloseSettingsMenuInternal(false);
+    }
+
+    /// <summary>
+    /// Internal method to handle closing the settings menu with or without saving
+    /// </summary>
+    /// <param name="wasSaved">Whether settings were saved</param>
+    private void CloseSettingsMenuInternal(bool wasSaved)
+    {
+        if (settingsMenuUI != null)
+        {
+            // Hide the menu
+            settingsMenuUI.SetActive(false);
+            isVisible = false;
+            
+            // Check if we're in the main menu scene
+            bool isMainMenu = SceneManager.GetActiveScene().name == "MainMenu";
+            
+            // Only pause the game if we're NOT in the main menu
+            if (!isMainMenu)
+            {
+                // This is needed because some event might be resuming the game
+                Time.timeScale = 0f;
+                PauseManager.SetPaused(true);
+            }
+            else
+            {
+                // Ensure time is running in the main menu
+                Time.timeScale = 1f;
+                if (PauseManager.IsPaused())
+                {
+                    PauseManager.SetPaused(false);
+                }
+            }
+            
+            // Trigger the close event to notify PauseMenu
+            if (OnSettingsMenuClosed != null)
+                OnSettingsMenuClosed.Invoke();
+            
+            // If settings weren't saved, reload the previously saved settings to revert changes
+            if (!wasSaved)
+            {
+                // Reload the saved settings - this will undo any unsaved changes
+                LoadSettings();
+                
+                // Initialize UI with reloaded values - not necessary in this case since the menu is closing
+                //InitializeUI();
+            }
         }
     }
     

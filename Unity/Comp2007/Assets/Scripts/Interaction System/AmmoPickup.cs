@@ -14,8 +14,24 @@ public class AmmoPickup : MonoBehaviour, IInteractable
     [SerializeField] private int pointCost = 50;              // Cost in points to use this pickup
     
     [Header("Effects")]
-    [SerializeField] private AudioSource pickupSound;         // Optional sound effect when picking up ammo
+    /// <summary>
+    /// Sound name for the pickup sound effect
+    /// </summary>
+    [SerializeField] private string pickupSoundName = "ItemPickup";  // Sound name for pickup in SoundLibrary
+    
+    /// <summary>
+    /// Audio mixer group to use for the pickup sound
+    /// </summary>
+    [SerializeField] private string audioMixerGroup = "SFX";  // Mixer group name
+    
+    /// <summary>
+    /// Optional particle effect when picking up
+    /// </summary>
     [SerializeField] private GameObject pickupEffect;         // Optional particle effect when picking up
+    
+    /// <summary>
+    /// How long the effect lasts before being destroyed
+    /// </summary>
     [SerializeField] private float effectDuration = 2f;       // How long the effect lasts before being destroyed
     
     private WeaponManager weaponManager;                     // Reference to the weapon manager
@@ -121,11 +137,8 @@ public class AmmoPickup : MonoBehaviour, IInteractable
                     // Deduct points
                     pointSystem.AddPoints(-pointCost);
                     
-                    // Play pickup sound if assigned
-                    if (pickupSound != null)
-                    {
-                        pickupSound.Play();
-                    }
+                    // Play pickup sound using SoundManager
+                    PlayPickupSound(interactor.transform.position);
                     
                     // Spawn pickup effect if assigned
                     if (pickupEffect != null)
@@ -161,5 +174,21 @@ public class AmmoPickup : MonoBehaviour, IInteractable
             Debug.LogWarning("No Shoot component found on current weapon");
             return false;
         }
+    }
+    
+    /// <summary>
+    /// Plays the pickup sound using SoundManager with mixer support
+    /// </summary>
+    /// <param name="position">Position to play the sound at</param>
+    private void PlayPickupSound(Vector3 position)
+    {
+        if (string.IsNullOrEmpty(pickupSoundName)) return;
+        
+        // Get SoundManager instance
+        SoundManager soundManager = SoundManager.GetInstance();
+        if (soundManager == null) return;
+        
+        // Play the sound at the specified position with mixer group
+        soundManager.PlaySound3DWithMixer(pickupSoundName, position, 1.0f, audioMixerGroup);
     }
 }

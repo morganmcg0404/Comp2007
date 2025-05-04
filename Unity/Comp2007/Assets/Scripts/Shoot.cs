@@ -78,44 +78,44 @@ public class Shoot : MonoBehaviour
     
     [Header("Effects")]
     /// <summary>
-    /// Sound played when firing the weapon
+    /// Sound name for firing the weapon
     /// </summary>
-    [SerializeField] private AudioSource shootSound;
-    
+    [SerializeField] private string shootSoundName = "Shoot";
+
     /// <summary>
     /// Visual particle effect for the muzzle flash when firing
     /// </summary>
     [SerializeField] private ParticleSystem muzzleFlash;
-    
+
     /// <summary>
     /// Effect spawned at bullet impact points
     /// </summary>
     [SerializeField] private GameObject hitEffect;
-    
+
     /// <summary>
     /// Line renderer used to draw bullet trails
     /// </summary>
     [SerializeField] private LineRenderer bulletTrail;
-    
+
     /// <summary>
     /// How long bullet trails remain visible in seconds
     /// </summary>
     [SerializeField] private float trailDuration = 0.05f;
-    
+
     /// <summary>
-    /// Sound played when toggling between fire modes
+    /// Sound name for toggling between fire modes
     /// </summary>
-    [SerializeField] private AudioSource fireModeToggleSound; // Optional sound for mode switching
-    
+    [SerializeField] private string fireModeToggleSoundName = "FireModeToggle";
+
     /// <summary>
-    /// Sound played during the reload animation
+    /// Sound name for reloading the weapon
     /// </summary>
-    [SerializeField] private AudioSource reloadSound; // Optional sound for reloading
-    
+    [SerializeField] private string reloadSoundName = "Reload";
+
     /// <summary>
-    /// Sound played when trying to shoot with an empty magazine
+    /// Sound name for bullet impact
     /// </summary>
-    [SerializeField] private AudioSource emptyClipSound; // Sound when trying to shoot with empty magazine
+    [SerializeField] private string bulletImpactSoundName = "BulletImpact";
     
     [Header("Recoil Settings")]
     /// <summary>
@@ -163,6 +163,32 @@ public class Shoot : MonoBehaviour
     /// Layers that bullets can penetrate (typically enemies)
     /// </summary>
     [SerializeField] private LayerMask penetrableLayers; // Layers that can be penetrated (typically enemies)
+    
+    [Header("Animations")]
+    /// <summary>
+    /// Animator component for weapon animations
+    /// </summary>
+    [SerializeField] private Animator weaponAnimator;
+    
+    /// <summary>
+    /// Name of the reload animation trigger parameter in the Animator
+    /// </summary>
+    [SerializeField] private string reloadAnimTrigger = "Reload";
+    
+    /// <summary>
+    /// Whether the reload time should match the animation length
+    /// </summary>
+    [SerializeField] private bool matchReloadTimeToAnimation = true;
+    
+    /// <summary>
+    /// Animator controller for the reload animation
+    /// </summary>
+    [SerializeField] private RuntimeAnimatorController reloadAnimController;
+    
+    /// <summary>
+    /// Optional reload animation clip if not using an animator controller
+    /// </summary>
+    [SerializeField] private AnimationClip reloadAnimClip;
     
     /// <summary>
     /// Defines the available automatic firing modes
@@ -272,6 +298,9 @@ public class Shoot : MonoBehaviour
         
         // Convert rounds per minute to fire rate in seconds
         UpdateFireRateFromRPM();
+        
+        // Initialize weapon animator if needed
+        SetupAnimator();
     }
     
     /// <summary>
@@ -359,13 +388,7 @@ public class Shoot : MonoBehaviour
     {
         // Check if we have ammo
         if (currentAmmoInMag <= 0)
-        {
-            // Play empty clip sound
-            if (emptyClipSound != null)
-            {
-                emptyClipSound.Play();
-            }
-            
+        {            
             // Auto reload if enabled and we have reserve ammo
             if (autoReloadWhenEmpty && currentTotalAmmo > 0)
             {
@@ -391,14 +414,37 @@ public class Shoot : MonoBehaviour
         // Start reload sequence
         isReloading = true;
         
-        // Play reload sound if available
-        if (reloadSound != null)
+        float animationDuration = reloadTime;
+        if (weaponAnimator != null)
         {
-            reloadSound.Play();
+            // Trigger the reload animation immediately
+            weaponAnimator.SetTrigger(reloadAnimTrigger);
+            
+            // Get animation length if we should match timing to animation
+            if (matchReloadTimeToAnimation && reloadAnimClip != null)
+            {
+                animationDuration = reloadAnimClip.length;
+                
+                // Log mismatch warning if there's a significant difference
+                if (Mathf.Abs(reloadTime - animationDuration) > 0.25f)
+                {
+                    Debug.LogWarning($"Reload time ({reloadTime}s) doesn't match animation length ({animationDuration}s)");
+                }
+            }
         }
         
-        // Wait for reload time
-        yield return new WaitForSeconds(reloadTime);
+        // Play reload sound AFTER starting animation to ensure sync
+        PlayWeaponSound(reloadSoundName);
+        
+        // Wait for reload time (use animation length if matching to animation)
+        if (matchReloadTimeToAnimation && reloadAnimClip != null)
+        {
+            yield return new WaitForSeconds(animationDuration);
+        }
+        else
+        {
+            yield return new WaitForSeconds(reloadTime);
+        }
         
         // Calculate ammo to add to magazine
         int ammoToAdd = magazineSize - currentAmmoInMag;
@@ -426,11 +472,8 @@ public class Shoot : MonoBehaviour
         currentFireMode = (currentFireMode == FireMode.SemiAuto) ? 
             FireMode.FullAuto : FireMode.SemiAuto;
         
-        // Play toggle sound if assigned
-        if (fireModeToggleSound != null)
-        {
-            fireModeToggleSound.Play();
-        }
+        // Play toggle sound with mixer support
+        PlayWeaponSound(fireModeToggleSoundName);
         
         // You could add UI feedback here, like displaying the current fire mode on screen
     }
@@ -443,16 +486,11 @@ public class Shoot : MonoBehaviour
         // Set the next time we can fire
         nextFireTime = Time.time + fireRate;
 
-        // Play effects
-        if (muzzleFlash != null)
-        {
-            muzzleFlash.Play();
-        }
+        // Play muzzle flash
+        PlayMuzzleFlash();
 
-        if (shootSound != null)
-        {
-            shootSound.Play();
-        }
+        // Play shoot sound attached to player
+        PlayWeaponSound(shootSoundName);
 
         // Apply recoil
         ApplyRecoil();
@@ -511,6 +549,12 @@ public class Shoot : MonoBehaviour
             {
                 GameObject impact = Instantiate(hitEffect, hit.point, Quaternion.LookRotation(hit.normal));
                 Destroy(impact, 2f);
+    
+                // Play impact sound at hit location using SoundManager with mixer support
+                if (SoundManager.GetInstance() != null) 
+                {
+                    SoundManager.GetInstance().PlaySound3DWithMixer(bulletImpactSoundName, hit.point, 0.7f, "SFX");
+                }
             }
 
             // Check if this object can be penetrated (typically only enemies)
@@ -653,6 +697,56 @@ public class Shoot : MonoBehaviour
             }
         }
     }
+
+    /// <summary>
+    /// Plays weapon sounds as a child of the player for better spatial audio while moving
+    /// </summary>
+    /// <param name="soundName">Name of the sound in SoundLibrary</param>
+    /// <param name="volume">Volume level (default 1.0)</param>
+    private void PlayWeaponSound(string soundName, float volume = 1.0f, string mixerGroup = "SFX")
+    {
+        if (string.IsNullOrEmpty(soundName)) return;
+    
+        SoundManager soundManager = SoundManager.GetInstance();
+        if (soundManager == null || soundManager.GetSoundLibrary() == null) 
+        {
+            Debug.LogWarning("SoundManager or SoundLibrary not available");
+            return;
+        }
+    
+        AudioClip clip = soundManager.GetSoundLibrary().GetClipFromName(soundName);
+        if (clip == null) return;
+    
+        // Find the player transform - could be parent or grandparent of weapon
+        Transform playerTransform = transform;
+        while (playerTransform.parent != null)
+        {
+            if (playerTransform.CompareTag("Player"))
+                break;
+            playerTransform = playerTransform.parent;
+        }
+    
+        // Create the audio source as child of player
+        GameObject audioObj = new GameObject(soundName + "_Sound");
+        audioObj.transform.SetParent(playerTransform);
+        audioObj.transform.localPosition = Vector3.zero;
+    
+        AudioSource audioSource = audioObj.AddComponent<AudioSource>();
+        audioSource.clip = clip;
+        audioSource.volume = volume;
+        audioSource.spatialBlend = 1.0f; // Full 3D sound
+    
+        // Set audio mixer group if SoundManager provides it
+        if (soundManager.GetAudioMixerGroup(mixerGroup) != null) 
+        {
+            audioSource.outputAudioMixerGroup = soundManager.GetAudioMixerGroup(mixerGroup);
+        }
+    
+        audioSource.Play();
+    
+        // Clean up after playing
+        Destroy(audioObj, clip.length + 0.1f);
+    }
     
     /// <summary>
     /// Gets the current fire mode as a string for UI display
@@ -715,5 +809,117 @@ public class Shoot : MonoBehaviour
     public int GetRoundsPerMinute()
     {
         return roundsPerMinute;
+    }
+    
+    /// <summary>
+    /// Sets up the animator component if not already assigned
+    /// </summary>
+    private void SetupAnimator()
+    {
+        // If animator not assigned, try to find one
+        if (weaponAnimator == null)
+        {
+            weaponAnimator = GetComponent<Animator>();
+            
+            // If still not found, try to find on child objects
+            if (weaponAnimator == null)
+            {
+                weaponAnimator = GetComponentInChildren<Animator>();
+            }
+        }
+        
+        // If we have an animator but no controller assigned and we have a reload controller, assign it
+        if (weaponAnimator != null && weaponAnimator.runtimeAnimatorController == null && reloadAnimController != null)
+        {
+            weaponAnimator.runtimeAnimatorController = reloadAnimController;
+        }
+        
+        // If using animation clip directly without animator controller
+        if (weaponAnimator != null && reloadAnimClip != null && weaponAnimator.runtimeAnimatorController == null)
+        {
+            // Create a simple controller at runtime
+            AnimatorOverrideController overrideController = new AnimatorOverrideController();
+            
+            // We need a base controller to override
+            // In this case, you would need a simple base controller in your project
+            // You could also create one programmatically but that's more complex
+            
+            // Just log warning for now if no controller assigned
+            Debug.LogWarning("Direct animation clip assignment requires a base RuntimeAnimatorController");
+        }
+    }
+    
+    /// <summary>
+    /// Gets the current reload animation clip
+    /// </summary>
+    /// <returns>Current reload animation clip or null if not assigned</returns>
+    public AnimationClip GetReloadAnimClip()
+    {
+        return reloadAnimClip;
+    }
+    
+    /// <summary>
+    /// Sets a new reload animation clip
+    /// </summary>
+    /// <param name="newClip">New animation clip to use for reloading</param>
+    public void SetReloadAnimClip(AnimationClip newClip)
+    {
+        if (newClip != null)
+        {
+            reloadAnimClip = newClip;
+            
+            // Update reload time if we're matching to animation
+            if (matchReloadTimeToAnimation)
+            {
+                reloadTime = newClip.length;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Creates and plays a muzzle flash particle effect at the weapon's fire point
+    /// </summary>
+    private void PlayMuzzleFlash()
+    {
+        if (muzzleFlash != null)
+        {
+            // Option 1: Play the attached particle system directly if it's assigned
+            muzzleFlash.Play();
+        }
+        else
+        {
+            // Option 2: Instantiate a new particle system at the fire point
+            GameObject muzzleFlashPrefab = Resources.Load<GameObject>("Effects/MuzzleFlash");
+            if (muzzleFlashPrefab != null)
+            {
+                // Instantiate at the fire point position and rotation
+                GameObject muzzleFlashInstance = Instantiate(
+                    muzzleFlashPrefab, 
+                    firePoint.position, 
+                    firePoint.rotation
+                );
+                
+                // Get the particle system from the instantiated object
+                ParticleSystem particleSystem = muzzleFlashInstance.GetComponent<ParticleSystem>();
+                if (particleSystem != null)
+                {
+                    // Configure the particle system if needed
+                    var main = particleSystem.main;
+                    main.stopAction = ParticleSystemStopAction.Destroy; // Auto-destroy when done
+                    
+                    // Start playing the effect
+                    particleSystem.Play();
+                    
+                    // Alternatively, destroy after fixed time (useful if stop action doesn't work)
+                    float duration = main.duration + main.startLifetime.constantMax;
+                    Destroy(muzzleFlashInstance, duration);
+                }
+                else
+                {
+                    // If no particle system found, destroy after a fixed time
+                    Destroy(muzzleFlashInstance, 2f);
+                }
+            }
+        }
     }
 }

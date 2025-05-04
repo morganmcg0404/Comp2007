@@ -209,6 +209,52 @@ public class PlayerMovement : MonoBehaviour
     /// </summary>
     [SerializeField] private int maxTweenCapacity = 2000;
 
+    [Header("Audio Settings")]
+    /// <summary>
+    /// Sound name for footsteps while walking
+    /// </summary>
+    [SerializeField] private string walkFootstepSoundName = "WalkFootstep";
+
+    /// <summary>
+    /// Sound name for footsteps while running
+    /// </summary>
+    [SerializeField] private string sprintFootstepSoundName = "SprintFootstep";
+
+    /// <summary>
+    /// Sound name for footsteps while crouching
+    /// </summary>
+    [SerializeField] private string crouchFootstepSoundName = "CrouchFootstep";
+
+    /// <summary>
+    /// Sound name for jumping
+    /// </summary>
+    [SerializeField] private string jumpSoundName = "Jump";
+
+    /// <summary>
+    /// Time between footstep sounds when walking
+    /// </summary>
+    [SerializeField] private float walkFootstepInterval = 0.5f;
+
+    /// <summary>
+    /// Time between footstep sounds when sprinting
+    /// </summary>
+    [SerializeField] private float sprintFootstepInterval = 0.3f;
+
+    /// <summary>
+    /// Time between footstep sounds when crouching
+    /// </summary>
+    [SerializeField] private float crouchFootstepInterval = 0.7f;
+
+    /// <summary>
+    /// Minimum velocity required to make footstep sounds
+    /// </summary>
+    [SerializeField] private float footstepVelocityThreshold = 0.1f;
+
+    /// <summary>
+    /// Maximum velocity to scale footstep volume from
+    /// </summary>
+    [SerializeField] private float maxFootstepVelocity = 10f;
+
     // Private variables
     /// <summary>
     /// Current vertical velocity vector
@@ -326,6 +372,10 @@ public class PlayerMovement : MonoBehaviour
     /// </summary>
     private float externalSpeedMultiplier = 1.0f;
 
+    // Sound timing variables
+    private float lastFootstepTime = 0f;
+    private float currentFootstepInterval = 0.5f;
+
     /// <summary>
     /// Initializes DOTween with appropriate capacity settings
     /// </summary>
@@ -374,6 +424,9 @@ public class PlayerMovement : MonoBehaviour
     /// </summary>
     private void Update()
     {
+        // Check ground state before updating
+        bool wasGroundedBefore = isGrounded;
+        
         // Ground check - adjust position based on current controller height
         isGrounded = Physics.CheckSphere(groundCheck.position, groundDistance, groundMask);
 
@@ -382,6 +435,9 @@ public class PlayerMovement : MonoBehaviour
         {
             velocity.y = -2f; // Small downward force to keep player grounded
         }
+
+        // Keep track of grounded state for next frame
+        wasGroundedBefore = isGrounded;
 
         // Get movement input
         float x = Input.GetAxis("Horizontal");
@@ -424,7 +480,7 @@ public class PlayerMovement : MonoBehaviour
 
         // Store the direction modifier for later reference
         currentDirectionModifier = directionModifier;
-    
+
         // Determine current target speed based on stance (unless sliding)
         if (!isSliding)
         {
@@ -443,11 +499,13 @@ public class PlayerMovement : MonoBehaviour
             currentSpeed = Mathf.Lerp(currentSpeed, effectiveTargetSpeed * externalSpeedMultiplier, speedTransitionRate * Time.deltaTime);
         }
     
-        // Apply movement using the current calculated speed (no need to multiply by directionModifier again)
-        // as it's already factored into currentSpeed
+        // Apply movement using the current calculated speed
         Vector3 moveAmount = move * currentSpeed * Time.deltaTime;
         controller.Move(moveAmount);
 
+        // HANDLE FOOTSTEPS
+        HandleFootstepSounds(isMoving);
+    
         // Handle sliding state and transitions
         HandleSliding(move);
     
@@ -530,8 +588,10 @@ public class PlayerMovement : MonoBehaviour
             }
             else
             {
-                // Perform normal jump
+                // Perform normal jump and play sound
                 velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
+                PlayMovementSound(jumpSoundName, 0.8f);
+                
                 // Disable sprinting when jumping
                 isSprinting = false;
             }
@@ -1141,5 +1201,151 @@ public class PlayerMovement : MonoBehaviour
     public bool IsGrounded()
     {
         return isGrounded;
+    }
+
+    /// <summary>
+    /// Plays movement sounds as a child of the player for better spatial audio
+    /// </summary>
+    /// <param name="soundName">Name of the sound in SoundLibrary</param>
+    /// <param name="volume">Volume level (default 1.0)</param>
+    /// <param name="mixerGroup">Audio mixer group to use (default "SFX")</param>
+    /// <param name="destroyAfterPlaying">Whether to destroy the audio source after playing</param>
+    /// <returns>The created audio object if destroyAfterPlaying is false, otherwise null</returns>
+    private GameObject PlayMovementSound(string soundName, float volume = 1.0f, string mixerGroup = "SFX", bool destroyAfterPlaying = true)
+    {
+        if (string.IsNullOrEmpty(soundName)) return null;
+
+        SoundManager soundManager = SoundManager.GetInstance();
+        if (soundManager == null || soundManager.GetSoundLibrary() == null) 
+        {
+            Debug.LogWarning("SoundManager or SoundLibrary not available");
+            return null;
+        }
+
+        AudioClip clip = soundManager.GetSoundLibrary().GetClipFromName(soundName);
+        if (clip == null) return null;
+
+        // Create the audio source as child of player
+        GameObject audioObj = new GameObject(soundName + "_Sound");
+        audioObj.transform.SetParent(transform);
+        audioObj.transform.localPosition = Vector3.zero;
+
+        AudioSource audioSource = audioObj.AddComponent<AudioSource>();
+        audioSource.clip = clip;
+        audioSource.volume = volume;
+        audioSource.spatialBlend = 1.0f; // Full 3D sound
+
+        // Set audio mixer group if SoundManager provides it
+        if (soundManager.GetAudioMixerGroup(mixerGroup) != null) 
+        {
+            audioSource.outputAudioMixerGroup = soundManager.GetAudioMixerGroup(mixerGroup);
+        }
+
+        audioSource.Play();
+
+        // Clean up after playing if needed
+        if (destroyAfterPlaying)
+        {
+            Destroy(audioObj, clip.length + 0.1f);
+            return null;
+        }
+        
+        return audioObj;
+    }
+
+    /// <summary>
+    /// Handles footstep sounds based on player state and movement
+    /// </summary>
+    /// <param name="isMoving">Whether the player is currently moving</param>
+    private void HandleFootstepSounds(bool isMoving)
+    {
+        // Only play footsteps when grounded and moving
+        if (!isGrounded || !isMoving)
+        {
+            return;
+        }
+
+        // Calculate horizontal velocity for footstep timing/volume
+        Vector3 horizontalVelocity = new Vector3(controller.velocity.x, 0, controller.velocity.z);
+        float velocityMagnitude = horizontalVelocity.magnitude;
+        
+        // Don't play footsteps if moving too slowly
+        if (velocityMagnitude < footstepVelocityThreshold)
+        {
+            return;
+        }
+
+        // Set the appropriate footstep interval based on movement state
+        if (isSliding)
+        {
+            // Sliding uses a different sound system
+            return;
+        }
+        else if (isCrouching)
+        {
+            currentFootstepInterval = crouchFootstepInterval;
+        }
+        else if (isSprinting)
+        {
+            currentFootstepInterval = sprintFootstepInterval;
+        }
+        else
+        {
+            currentFootstepInterval = walkFootstepInterval;
+        }
+
+        // Check if it's time to play a footstep
+        if (Time.time >= lastFootstepTime + currentFootstepInterval)
+        {
+            // Determine which footstep sound to use
+            string footstepSound = walkFootstepSoundName;
+            
+            if (isCrouching)
+            {
+                footstepSound = crouchFootstepSoundName;
+            }
+            else if (isSprinting)
+            {
+                footstepSound = sprintFootstepSoundName;
+            }
+            
+            // Scale volume based on velocity (faster = louder, up to a point)
+            float volume = Mathf.Clamp01(velocityMagnitude / maxFootstepVelocity) * 0.7f + 0.3f;
+            
+            // Vary pitch slightly for more natural sound
+            float pitch = Random.Range(0.95f, 1.05f);
+            
+            // Play the footstep sound
+            PlayMovementSound(footstepSound, volume);
+            
+            // Update the last footstep time
+            lastFootstepTime = Time.time;
+        }
+    }
+
+    /// <summary>
+    /// Fades out an audio source and destroys its game object
+    /// </summary>
+    /// <param name="audioSource">The audio source to fade</param>
+    /// <param name="fadeDuration">Duration of the fade in seconds</param>
+    private IEnumerator FadeOutAndDestroy(AudioSource audioSource, float fadeDuration)
+    {
+        if (audioSource != null)
+        {
+            float startVolume = audioSource.volume;
+            float timer = 0;
+            
+            while (timer < fadeDuration)
+            {
+                timer += Time.deltaTime;
+                audioSource.volume = Mathf.Lerp(startVolume, 0, timer / fadeDuration);
+                yield return null;
+            }
+            
+            if (audioSource != null && audioSource.gameObject != null)
+            {
+                Destroy(audioSource.gameObject);
+            }
+        }
     }
 }

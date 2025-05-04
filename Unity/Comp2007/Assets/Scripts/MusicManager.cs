@@ -21,12 +21,6 @@ public class MusicManager : MonoBehaviour
     /// Audio source component used for playing music tracks
     /// </summary>
     [SerializeField] private AudioSource musicSource;
-    
-    [Header("Audio Camera")]
-    /// <summary>
-    /// Camera that should persist between scenes for consistent audio
-    /// </summary>
-    [SerializeField] private Camera audioCamera;
 
     /// <summary>
     /// Initializes the singleton instance
@@ -43,13 +37,6 @@ public class MusicManager : MonoBehaviour
         {
             Instance = this;                    // Set this as the singleton instance
             DontDestroyOnLoad(gameObject);     // Preserve across scene changes
-            
-            // Make sure audio camera persists if assigned
-            if (audioCamera != null)
-            {
-                DontDestroyOnLoad(audioCamera.gameObject);
-                Debug.Log("Audio camera preserved between scenes");
-            }
         }
     }
 
@@ -153,29 +140,6 @@ public class MusicManager : MonoBehaviour
         if (musicSource != null)
         {
             musicSource.volume = Mathf.Clamp01(volume);
-        }
-    }
-    
-    /// <summary>
-    /// Gets the preserved audio camera
-    /// </summary>
-    /// <returns>The audio camera that persists between scenes</returns>
-    public Camera GetAudioCamera()
-    {
-        return audioCamera;
-    }
-    
-    /// <summary>
-    /// Sets a camera as the persistent audio camera
-    /// </summary>
-    /// <param name="camera">Camera to mark as persistent</param>
-    public void SetAudioCamera(Camera camera)
-    {
-        if (camera != null)
-        {
-            audioCamera = camera;
-            DontDestroyOnLoad(camera.gameObject);
-            Debug.Log("New audio camera set to persist between scenes");
         }
     }
     

@@ -1,4 +1,6 @@
 using UnityEngine;
+using UnityEngine.Audio;
+using System.Collections.Generic;
 
 /// <summary>
 /// Manages sound effects playback for both 2D and 3D audio sources
@@ -20,13 +22,10 @@ public class SoundManager : MonoBehaviour
     /// Audio source for 2D sounds such as UI elements
     /// </summary>
     [SerializeField] private AudioSource sfx2DSource;
-    
-    [Header("Audio Camera")]
-    /// <summary>
-    /// Camera that should persist between scenes for consistent audio
-    /// Can be set to the same camera as MusicManager uses
-    /// </summary>
-    [SerializeField] private Camera audioCamera;
+
+    [SerializeField] private AudioMixer audioMixer;
+
+    private Dictionary<string, AudioMixerGroup> mixerGroups = new Dictionary<string, AudioMixerGroup>();
 
     /// <summary>
     /// Initializes the singleton instance
@@ -43,13 +42,6 @@ public class SoundManager : MonoBehaviour
         {
             Instance = this;                    // Set this as the singleton instance
             DontDestroyOnLoad(gameObject);      // Preserve across scene changes
-            
-            // Make sure audio camera persists if assigned
-            if (audioCamera != null)
-            {
-                DontDestroyOnLoad(audioCamera.gameObject);
-                Debug.Log("Audio camera preserved between scenes");
-            }
         }
     }
 
@@ -129,6 +121,69 @@ public class SoundManager : MonoBehaviour
             Destroy(tempGO, clip.length);
         }
     }
+
+    /// <summary>
+    /// Gets an AudioMixerGroup by name from the assigned AudioMixer
+    /// </summary>
+    /// <param name="groupName">Name of the mixer group</param>
+    /// <returns>The AudioMixerGroup or null if not found</returns>
+    public AudioMixerGroup GetAudioMixerGroup(string groupName)
+    {
+        // Return from cache if available
+        if (mixerGroups.ContainsKey(groupName))
+            return mixerGroups[groupName];
+    
+        // Not in cache, try to find it
+        if (audioMixer != null)
+        {
+            AudioMixerGroup[] groups = audioMixer.FindMatchingGroups(groupName);
+            if (groups.Length > 0)
+            {
+                // Cache and return the found group
+                mixerGroups[groupName] = groups[0];
+                return groups[0];
+            }
+        }
+    
+        return null;
+    }
+
+    /// <summary>
+    /// Plays a 3D sound with specific mixer group assignment
+    /// </summary>
+    /// <param name="soundName">The name of the sound</param>
+    /// <param name="position">World position for sound</param>
+    /// <param name="volume">Volume level from 0-1</param>
+    /// <param name="mixerGroupName">Name of the audio mixer group</param>
+    /// <param name="pitch">Pitch adjustment (1.0 is normal)</param>
+    public void PlaySound3DWithMixer(string soundName, Vector3 position, float volume = 1.0f, 
+                                    string mixerGroupName = "SFX", float pitch = 1.0f)
+    {
+        AudioClip clip = sfxLibrary.GetClipFromName(soundName);
+        if (clip == null) return;
+    
+        // Create temporary audio source at position
+        GameObject tempGO = new GameObject("TempAudio_" + soundName);
+        tempGO.transform.position = position;
+    
+        // Add and configure audio source
+        AudioSource audioSource = tempGO.AddComponent<AudioSource>();
+        audioSource.clip = clip;
+        audioSource.volume = volume;
+        audioSource.pitch = pitch;
+        audioSource.spatialBlend = 1.0f; // Full 3D
+    
+        // Assign mixer group if available
+        AudioMixerGroup group = GetAudioMixerGroup(mixerGroupName);
+        if (group != null)
+            audioSource.outputAudioMixerGroup = group;
+    
+        // Play sound
+        audioSource.Play();
+    
+        // Destroy the GameObject after the clip is done
+        Destroy(tempGO, clip.length + 0.1f);
+    }
     
     /// <summary>
     /// Sets the volume level of the 2D audio source
@@ -149,29 +204,6 @@ public class SoundManager : MonoBehaviour
     public SoundLibrary GetSoundLibrary()
     {
         return sfxLibrary;
-    }
-    
-    /// <summary>
-    /// Gets the preserved audio camera
-    /// </summary>
-    /// <returns>The audio camera that persists between scenes</returns>
-    public Camera GetAudioCamera()
-    {
-        return audioCamera;
-    }
-    
-    /// <summary>
-    /// Sets a camera as the persistent audio camera
-    /// </summary>
-    /// <param name="camera">Camera to mark as persistent</param>
-    public void SetAudioCamera(Camera camera)
-    {
-        if (camera != null)
-        {
-            audioCamera = camera;
-            DontDestroyOnLoad(camera.gameObject);
-            Debug.Log("New audio camera set to persist between scenes");
-        }
     }
     
     /// <summary>

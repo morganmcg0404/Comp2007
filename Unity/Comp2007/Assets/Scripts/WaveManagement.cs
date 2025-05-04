@@ -176,7 +176,7 @@ public class WaveManagement : MonoBehaviour
         // Update UI to show the current wave and zombies
         if (waveText != null)
         {
-            waveText.text = $"Wave {currentWave}";
+            waveText.text = $"{currentWave}";
         }
         
         // Update zombie counter to show upcoming zombies

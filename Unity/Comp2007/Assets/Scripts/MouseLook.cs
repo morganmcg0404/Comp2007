@@ -51,13 +51,20 @@ public class MouseLook : MonoBehaviour
     /// </summary>
     private float xRotation = 0f;
 
+    // Add this private flag
+    private bool hasBeenInitialized = false;
+
     /// <summary>
     /// Initializes the mouse look system by loading saved settings and locking the cursor
     /// </summary>
     private void Start()
     {
-        // Apply saved settings
-        LoadSettings();
+        // Only load settings on first initialization to prevent overriding runtime changes
+        if (!hasBeenInitialized)
+        {
+            LoadSettings();
+            hasBeenInitialized = true;
+        }
         
         // Lock the cursor
         Cursor.lockState = CursorLockMode.Locked;
@@ -70,7 +77,7 @@ public class MouseLook : MonoBehaviour
     private void Update()
     {
         // Skip mouse look if game is paused
-        if (Time.timeScale == 0)
+        if (PauseManager.IsPaused())
             return;
             
         // Calculate look speed based on base speed and sensitivity
@@ -83,9 +90,11 @@ public class MouseLook : MonoBehaviour
         // Apply inversion if enabled
         if (invertY)
             mouseY = -mouseY;
+        else
+            mouseY = -mouseY; // Standard behavior inverts Y
 
         // Handle looking up and down
-        xRotation -= mouseY; // Subtract to invert axis
+        xRotation += mouseY;
         xRotation = Mathf.Clamp(xRotation, -89f, 89f); // Clamp to slightly less than 90 degrees to prevent distortion
         
         // Apply rotation using Quaternion for smoother rotation
@@ -171,7 +180,11 @@ public class MouseLook : MonoBehaviour
     /// <param name="sensitivity">Sensitivity value between 0.1 and 10.0</param>
     public void SetSensitivity(float sensitivity)
     {
+        // Make sure sensitivity is in valid range
         mouseSensitivity = Mathf.Clamp(sensitivity, 0.1f, 10.0f);
+        
+        // Save immediately to ensure value persists
+        PlayerPrefs.SetFloat("MouseSensitivity", mouseSensitivity);
     }
     
     /// <summary>
@@ -202,6 +215,15 @@ public class MouseLook : MonoBehaviour
     /// </summary>
     /// <returns>Current mouse sensitivity multiplier</returns>
     public float GetSensitivity()
+    {
+        return mouseSensitivity;
+    }
+
+    /// <summary>
+    /// Gets the current mouse sensitivity value
+    /// </summary>
+    /// <returns>Current mouse sensitivity multiplier</returns>
+    public float GetCurrentSensitivity()
     {
         return mouseSensitivity;
     }

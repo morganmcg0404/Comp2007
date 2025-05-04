@@ -41,11 +41,11 @@ public class ZombieSpawner : MonoBehaviour
     }
 
     /// <summary>
-    /// The prefab of the zombie to spawn
+    /// The prefabs of the zombies to spawn
     /// </summary>
-    [Tooltip("The prefab of the zombie to spawn")]
-    public GameObject zombiePrefab;
-    
+    [Tooltip("The different zombie prefabs that can be spawned")]
+    public List<GameObject> zombiePrefabs = new List<GameObject>();
+
     /// <summary>
     /// List of all possible spawn points in the level
     /// </summary>
@@ -115,7 +115,8 @@ public class ZombieSpawner : MonoBehaviour
         if (PauseManager.IsPaused())
             return 0;
         
-        if (playerTransform == null || zombiePrefab == null)
+        // Check if we have valid zombie prefabs to spawn
+        if (playerTransform == null || zombiePrefabs.Count == 0)
             return 0;
         
         int spawned = 0;
@@ -159,8 +160,11 @@ public class ZombieSpawner : MonoBehaviour
             // Calculate spawn position with offset if there are already zombies at this location
             Vector3 spawnPosition = GetOffsetSpawnPosition(selectedPoint);
             
+            // Select a random zombie prefab
+            GameObject selectedZombiePrefab = zombiePrefabs[Random.Range(0, zombiePrefabs.Count)];
+            
             // Spawn zombie at the calculated position but maintain original rotation
-            GameObject zombie = Instantiate(zombiePrefab, spawnPosition, selectedPoint.location.rotation);
+            GameObject zombie = Instantiate(selectedZombiePrefab, spawnPosition, selectedPoint.location.rotation);
             
             // Add zombie to the tracking list for this spawn point
             selectedPoint.activeZombies.Add(zombie);

@@ -40,9 +40,9 @@ public class QuickMeleeAttack : MonoBehaviour
     
     [Header("Effects")]
     /// <summary>
-    /// Audio source for the quick melee attack sound
+    /// Sound name for the quick melee attack sound
     /// </summary>
-    [SerializeField] private AudioSource quickMeleeSound;
+    [SerializeField] private string meleeSoundName = "QuickMelee";
     
     /// <summary>
     /// Effect spawned when hitting non-organic surfaces
@@ -148,11 +148,8 @@ public class QuickMeleeAttack : MonoBehaviour
             viewModelAnimator.SetTrigger(quickMeleeAnimTrigger);
         }
         
-        // Play sound if available
-        if (quickMeleeSound != null)
-        {
-            quickMeleeSound.Play();
-        }
+        // Play melee sound as child of player
+        PlayMeleeSound(meleeSoundName);
         
         // Wait for the attack delay (animation timing)
         yield return new WaitForSeconds(attackDelay);
@@ -206,7 +203,7 @@ public class QuickMeleeAttack : MonoBehaviour
                 }
             }
             
-            // Show hit effect
+            // Show hit effect and play appropriate sound
             CreateHitEffect(hit);
         }
     }
@@ -218,7 +215,7 @@ public class QuickMeleeAttack : MonoBehaviour
     /// <param name="hit">The raycast hit information containing the hit point and normal</param>
     private void CreateHitEffect(RaycastHit hit)
     {
-        // Determine which effect to show
+        // Determine which effect to show and sound to play
         GameObject effectToInstantiate = hitEffect;
         
         // Use blood effect for enemies or specific tags
@@ -247,5 +244,55 @@ public class QuickMeleeAttack : MonoBehaviour
     public bool IsQuickAttacking()
     {
         return isQuickAttacking;
+    }
+    
+    /// <summary>
+    /// Plays melee sounds as a child of the player for better spatial audio while moving
+    /// </summary>
+    /// <param name="soundName">Name of the sound in SoundLibrary</param>
+    /// <param name="volume">Volume level (default 1.0)</param>
+    private void PlayMeleeSound(string soundName, float volume = 1.0f, string mixerGroup = "SFX")
+    {
+        if (string.IsNullOrEmpty(soundName)) return;
+    
+        SoundManager soundManager = SoundManager.GetInstance();
+        if (soundManager == null || soundManager.GetSoundLibrary() == null) 
+        {
+            Debug.LogWarning("SoundManager or SoundLibrary not available");
+            return;
+        }
+    
+        AudioClip clip = soundManager.GetSoundLibrary().GetClipFromName(soundName);
+        if (clip == null) return;
+    
+        // Find the player transform - could be parent or grandparent of weapon
+        Transform playerTransform = transform;
+        while (playerTransform.parent != null)
+        {
+            if (playerTransform.CompareTag("Player"))
+                break;
+            playerTransform = playerTransform.parent;
+        }
+    
+        // Create the audio source as child of player
+        GameObject audioObj = new GameObject(soundName + "_Sound");
+        audioObj.transform.SetParent(playerTransform);
+        audioObj.transform.localPosition = Vector3.zero;
+    
+        AudioSource audioSource = audioObj.AddComponent<AudioSource>();
+        audioSource.clip = clip;
+        audioSource.volume = volume;
+        audioSource.spatialBlend = 1.0f; // Full 3D sound
+    
+        // Set audio mixer group if SoundManager provides it
+        if (soundManager.GetAudioMixerGroup(mixerGroup) != null) 
+        {
+            audioSource.outputAudioMixerGroup = soundManager.GetAudioMixerGroup(mixerGroup);
+        }
+    
+        audioSource.Play();
+    
+        // Clean up after playing
+        Destroy(audioObj, clip.length + 0.1f);
     }
 }

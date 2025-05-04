@@ -55,6 +55,52 @@ public class PauseMenu : MonoBehaviour
     /// </summary>
     [SerializeField] private GameObject mainMenuPanel; // Reference to the main pause menu panel
 
+    [Header("Confirmation Dialog")]
+    /// <summary>
+    /// Dialog panel that appears when asking to restart level
+    /// </summary>
+    [SerializeField] private GameObject confirmResetDialog;
+
+    /// <summary>
+    /// Button for confirming restart level
+    /// </summary>
+    [SerializeField] private Button resetYesButton;
+
+    /// <summary>
+    /// Button for rejecting restart level
+    /// </summary>
+    [SerializeField] private Button resetNoButton;
+
+    /// <summary>
+    /// Dialog panel that appears when asking to return to main menu
+    /// </summary>
+    [SerializeField] private GameObject confirmMainMenuDialog;
+
+    /// <summary>
+    /// Button for confirming return to main menu
+    /// </summary>
+    [SerializeField] private Button mainMenuYesButton;
+
+    /// <summary>
+    /// Button for rejecting return to main menu
+    /// </summary>
+    [SerializeField] private Button mainMenuNoButton;
+
+    /// <summary>
+    /// Dialog panel that appears when asking to Quit game
+    /// </summary>
+    [SerializeField] private GameObject confirmQuitDialog;
+
+    /// <summary>
+    /// Button for confirming quit action
+    /// </summary>
+    [SerializeField] private Button quitYesButton;
+
+    /// <summary>
+    /// Button for rejecting quit action
+    /// </summary>
+    [SerializeField] private Button quitNoButton;
+
     // State tracking
     /// <summary>
     /// Tracks whether the game is currently paused
@@ -119,6 +165,14 @@ public class PauseMenu : MonoBehaviour
         // Make sure settings panel is hidden initially
         if (settingsPanel != null)
             settingsPanel.SetActive(false);
+
+        // Hide confirmation dialogs at startup
+        if (confirmResetDialog != null)
+            confirmResetDialog.SetActive(false);
+        if (confirmMainMenuDialog != null)
+            confirmMainMenuDialog.SetActive(false);
+        if (confirmQuitDialog != null)
+            confirmQuitDialog.SetActive(false);
     }
     
     /// <summary>
@@ -280,11 +334,128 @@ public class PauseMenu : MonoBehaviour
     }
     
     /// <summary>
-    /// Handles the Main Menu button click, returning to the main menu scene
-    /// Properly destroys objects marked with DontDestroyOnLoad before scene transition
+    /// Handles the Main Menu button click, showing confirmation before returning to main menu
     /// </summary>
     public void OnMainMenuButtonClicked()
     {
+        // Show confirmation dialog
+        if (confirmMainMenuDialog != null)
+        {
+            // Show the confirmation dialog
+            confirmMainMenuDialog.SetActive(true);
+            
+            // Set up the button listeners
+            if (mainMenuYesButton != null)
+            {
+                mainMenuYesButton.onClick.RemoveAllListeners();
+                mainMenuYesButton.onClick.AddListener(ReturnToMainMenu);
+            }
+            
+            if (mainMenuNoButton != null)
+            {
+                mainMenuNoButton.onClick.RemoveAllListeners();
+                mainMenuNoButton.onClick.AddListener(CloseMainMenuConfirmation);
+            }
+            
+            // Select the No button by default for safety
+            if (mainMenuNoButton != null)
+            {
+                mainMenuNoButton.Select();
+            }
+        }
+        else
+        {
+            // No confirmation dialog, proceed directly
+            ReturnToMainMenu();
+        }
+    }
+
+    /// <summary>
+    /// Handles the Restart button click, showing confirmation before restarting
+    /// </summary>
+    public void OnRestartButtonClicked()
+    {
+        // Show confirmation dialog
+        if (confirmResetDialog != null)
+        {
+            // Show the confirmation dialog
+            confirmResetDialog.SetActive(true);
+            
+            // Set up the button listeners
+            if (resetYesButton != null)
+            {
+                resetYesButton.onClick.RemoveAllListeners();
+                resetYesButton.onClick.AddListener(RestartLevel);
+            }
+            
+            if (resetNoButton != null)
+            {
+                resetNoButton.onClick.RemoveAllListeners();
+                resetNoButton.onClick.AddListener(CloseRestartConfirmation);
+            }
+            
+            // Select the No button by default for safety
+            if (resetNoButton != null)
+            {
+                resetNoButton.Select();
+            }
+        }
+        else
+        {
+            // No confirmation dialog, proceed directly
+            RestartLevel();
+        }
+    }
+
+    /// <summary>
+    /// Handles the Quit button click, showing confirmation before exiting
+    /// </summary>
+    public void OnQuitButtonClicked()
+    {
+        // Show confirmation dialog
+        if (confirmQuitDialog != null)
+        {
+            // Show the confirmation dialog
+            confirmQuitDialog.SetActive(true);
+            
+            // Set up the button listeners
+            if (quitYesButton != null)
+            {
+                quitYesButton.onClick.RemoveAllListeners();
+                quitYesButton.onClick.AddListener(QuitGame);
+            }
+            
+            if (quitNoButton != null)
+            {
+                quitNoButton.onClick.RemoveAllListeners();
+                quitNoButton.onClick.AddListener(CloseQuitConfirmation);
+            }
+            
+            // Select the No button by default for safety
+            if (quitNoButton != null)
+            {
+                quitNoButton.Select();
+            }
+        }
+        else
+        {
+            // No confirmation dialog, proceed directly
+            QuitGame();
+        }
+    }
+    
+    /// <summary>
+    /// Returns to the main menu scene after confirmation
+    /// Properly destroys objects marked with DontDestroyOnLoad before scene transition
+    /// </summary>
+    private void ReturnToMainMenu()
+    {
+        // Close the confirmation dialog first
+        if (confirmMainMenuDialog != null)
+        {
+            confirmMainMenuDialog.SetActive(false);
+        }
+
         // Find and destroy any DontDestroyOnLoad objects that should be reset
         GameObject player = GameObject.FindGameObjectWithTag("Player");
         if (player != null)
@@ -308,11 +479,17 @@ public class PauseMenu : MonoBehaviour
     }
     
     /// <summary>
-    /// Handles the Restart button click, reloading the current scene
+    /// Restarts the current level after confirmation
     /// Properly destroys objects marked with DontDestroyOnLoad before restarting
     /// </summary>
-    public void OnRestartButtonClicked()
+    private void RestartLevel()
     {
+        // Close the confirmation dialog first
+        if (confirmResetDialog != null)
+        {
+            confirmResetDialog.SetActive(false);
+        }
+
         // Find and destroy any DontDestroyOnLoad objects that should be reset
         GameObject player = GameObject.FindGameObjectWithTag("Player");
         if (player != null)
@@ -382,8 +559,7 @@ public class PauseMenu : MonoBehaviour
             if (obj.GetComponent<SoundManager>() != null || 
                 obj.GetComponent<MusicManager>() != null ||
                 obj.GetComponent<Camera>() != null && 
-                (obj.name.Contains("Audio") || 
-                 IsCameraReferencedByAudioManager(obj.GetComponent<Camera>()))
+                (obj.name.Contains("Audio"))
                 )
             {
                 continue;
@@ -392,38 +568,18 @@ public class PauseMenu : MonoBehaviour
             Destroy(obj);
         }
     }
-
-    /// <summary>
-    /// Checks if a camera is referenced by an audio manager
-    /// </summary>
-    /// <param name="cam">Camera to check</param>
-    /// <returns>True if the camera is used by an audio manager</returns>
-    private bool IsCameraReferencedByAudioManager(Camera cam)
-    {
-        if (cam == null) return false;
-        
-        // Check if SoundManager references this camera
-        SoundManager soundManager = SoundManager.GetInstance();
-        if (soundManager != null && soundManager.GetAudioCamera() == cam)
-        {
-            return true;
-        }
-        
-        // Check if MusicManager references this camera
-        MusicManager musicManager = MusicManager.GetInstance();
-        if (musicManager != null && musicManager.GetAudioCamera() == cam)
-        {
-            return true;
-        }
-        
-        return false;
-    }
     
     /// <summary>
-    /// Handles the Quit button click, exiting the application
+    /// Quits the application after confirmation
     /// </summary>
-    public void OnQuitButtonClicked()
+    private void QuitGame()
     {
+        // Close the confirmation dialog first
+        if (confirmQuitDialog != null)
+        {
+            confirmQuitDialog.SetActive(false);
+        }
+
         // Quit the application (works in builds, not in editor)
         Application.Quit();
         
@@ -548,10 +704,20 @@ public class PauseMenu : MonoBehaviour
     
     /// <summary>
     /// Re-enables gameplay controller scripts when unpausing
+    /// Preserves runtime changes to mouse sensitivity
     /// </summary>
     private void EnablePlayerInput()
     {
-        // Re-enable player controller scripts
+        // CRITICAL: FIRST store current sensitivity before anything else
+        float currentSensitivity = 1.0f;
+        MouseLook mouseLook = FindAnyObjectByType<MouseLook>();
+        if (mouseLook != null)
+        {
+            currentSensitivity = mouseLook.GetCurrentSensitivity();
+            Debug.Log($"[PauseMenu] Preserving mouse sensitivity during unpause: {currentSensitivity}");
+        }
+
+        // Re-enable all controller scripts
         var playerControllers = FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None)
             .Where(mb => 
                 (mb.GetType().Name.Contains("Controller") || mb.GetType().Name.Contains("Input")) &&
@@ -564,6 +730,36 @@ public class PauseMenu : MonoBehaviour
         foreach (var controller in playerControllers)
         {
             controller.enabled = true;
+        }
+        
+        // IMPORTANT: Give a small delay before resetting the sensitivity
+        // This ensures MouseLook's Start() method completes first if it was re-enabled
+        StartCoroutine(RestoreSensitivityAfterDelay(currentSensitivity, 0.05f));
+    }
+
+    /// <summary>
+    /// Restores the mouse sensitivity after a short delay
+    /// </summary>
+    /// <param name="sensitivity">The sensitivity value to restore</param>
+    /// <param name="delay">Delay in seconds</param>
+    private System.Collections.IEnumerator RestoreSensitivityAfterDelay(float sensitivity, float delay)
+    {
+        // Wait for the real-time delay
+        yield return new WaitForSecondsRealtime(delay);
+        
+        // Find and set the sensitivity on all MouseLook components
+        MouseLook[] mouseLooks = FindObjectsByType<MouseLook>(FindObjectsSortMode.None);
+        foreach (MouseLook ml in mouseLooks)
+        {
+            if (ml != null)
+            {
+                // Force override the sensitivity and save it to PlayerPrefs
+                ml.SetSensitivity(sensitivity);
+                PlayerPrefs.SetFloat("MouseSensitivity", sensitivity);
+                PlayerPrefs.Save();
+                
+                Debug.Log($"[PauseMenu] Restored mouse sensitivity to: {sensitivity}");
+            }
         }
     }
     
@@ -619,6 +815,57 @@ public class PauseMenu : MonoBehaviour
         foreach (var controller in playerControllers)
         {
             controller.enabled = true;
+        }
+    }
+
+    /// <summary>
+    /// Closes the restart confirmation dialog without taking action
+    /// </summary>
+    private void CloseRestartConfirmation()
+    {
+        if (confirmResetDialog != null)
+        {
+            confirmResetDialog.SetActive(false);
+        }
+        
+        // Restore focus to the pause menu
+        if (eventSystem != null)
+        {
+            eventSystem.SetSelectedGameObject(null);
+        }
+    }
+
+    /// <summary>
+    /// Closes the main menu confirmation dialog without taking action
+    /// </summary>
+    private void CloseMainMenuConfirmation()
+    {
+        if (confirmMainMenuDialog != null)
+        {
+            confirmMainMenuDialog.SetActive(false);
+        }
+        
+        // Restore focus to the pause menu
+        if (eventSystem != null)
+        {
+            eventSystem.SetSelectedGameObject(null);
+        }
+    }
+
+    /// <summary>
+    /// Closes the quit confirmation dialog without taking action
+    /// </summary>
+    private void CloseQuitConfirmation()
+    {
+        if (confirmQuitDialog != null)
+        {
+            confirmQuitDialog.SetActive(false);
+        }
+        
+        // Restore focus to the pause menu
+        if (eventSystem != null)
+        {
+            eventSystem.SetSelectedGameObject(null);
         }
     }
 }

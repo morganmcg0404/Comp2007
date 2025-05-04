@@ -16,6 +16,22 @@ public class MainMenu : MonoBehaviour
     private const string MUSIC_VOLUME_PARAM = "MusicVolume";
     private const string SFX_VOLUME_PARAM = "SFXVolume";
 
+    [Header("Confirmation Dialog")]
+    /// <summary>
+    /// Dialog panel that appears when asking to Quit game
+    /// </summary>
+    [SerializeField] private GameObject confirmQuitDialog;
+
+    /// <summary>
+    /// Button for confirming quit action
+    /// </summary>
+    [SerializeField] private Button quitYesButton;
+
+    /// <summary>
+    /// Button for rejecting quit action
+    /// </summary>
+    [SerializeField] private Button quitNoButton;
+
     /// <summary>
     /// Called when the script instance is being loaded
     /// Initializes volume settings and starts menu music
@@ -37,6 +53,12 @@ public class MainMenu : MonoBehaviour
         // Make sure cursor is visible and unlocked in menu
         Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;
+
+        // Hide confirmation dialog at startup
+        if (confirmQuitDialog != null)
+        {
+            confirmQuitDialog.SetActive(false);
+        }
     }
 
     /// <summary>
@@ -188,5 +210,78 @@ public class MainMenu : MonoBehaviour
         // Apply loaded volumes to the audio mixer
         UpdateMusicVolume(musicVolume);
         UpdateSoundVolume(sfxVolume);
+    }
+
+    /// <summary>
+    /// Shows quit confirmation dialog when quit button is clicked
+    /// </summary>
+    public void OnQuitButtonClicked()
+    {
+        // Show confirmation dialog
+        if (confirmQuitDialog != null)
+        {
+            // Show the confirmation dialog
+            confirmQuitDialog.SetActive(true);
+            
+            // Set up the button listeners
+            if (quitYesButton != null)
+            {
+                quitYesButton.onClick.RemoveAllListeners();
+                quitYesButton.onClick.AddListener(QuitGame);
+            }
+            
+            if (quitNoButton != null)
+            {
+                quitNoButton.onClick.RemoveAllListeners();
+                quitNoButton.onClick.AddListener(CloseQuitConfirmation);
+            }
+            
+            // Select the No button by default for safety
+            if (quitNoButton != null)
+            {
+                quitNoButton.Select();
+            }
+        }
+        else
+        {
+            // No confirmation dialog, proceed directly
+            QuitGame();
+        }
+    }
+
+    /// <summary>
+    /// Quits the application after confirmation
+    /// </summary>
+    private void QuitGame()
+    {
+        Debug.Log("Quitting game...");
+        
+        // Close the confirmation dialog first
+        if (confirmQuitDialog != null)
+        {
+            confirmQuitDialog.SetActive(false);
+        }
+        
+        // Quit the application (works in builds, not in editor)
+        Application.Quit();
+        
+        // Optional: For testing in editor
+        #if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+        #endif
+    }
+
+    /// <summary>
+    /// Closes the quit confirmation dialog without taking action
+    /// </summary>
+    private void CloseQuitConfirmation()
+    {
+        if (confirmQuitDialog != null)
+        {
+            confirmQuitDialog.SetActive(false);
+        }
+        
+        // Restore focus to the main menu
+        // If you have a specific button to select, do it here
     }
 }

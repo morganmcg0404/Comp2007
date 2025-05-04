@@ -49,6 +49,27 @@ public class HealthArmourSystem : MonoBehaviour
     [SerializeField] private float _deathCameraHeightOffset = 1f; // Height offset
     [SerializeField] private Vector3 _deathCameraOffset = new Vector3(0f, 1f, 0f); // Offset from player position
     
+    [Header("Audio Settings")]
+    /// <summary>
+    /// Sound name for taking damage
+    /// </summary>
+    [SerializeField] private string _damageSoundName = "PlayerDamage";
+
+    /// <summary>
+    /// Sound name for player death
+    /// </summary>
+    [SerializeField] private string _deathSoundName = "PlayerDeath";
+
+    /// <summary>
+    /// Minimum time between damage sounds to prevent overlapping
+    /// </summary>
+    [SerializeField] private float _damageSoundCooldown = 0.2f;
+
+    /// <summary>
+    /// Audio mixer group for damage sounds
+    /// </summary>
+    [SerializeField] private string _audioMixerGroup = "SFX";
+
     // Internal variables
     private float[] _ArmourPlateHealths = new float[3];
     private int _activeArmourPlates = 0;
@@ -56,6 +77,7 @@ public class HealthArmourSystem : MonoBehaviour
     private int _displayedCurrentHealth;
     private int _displayedMaxHealth;
     private bool _isDead = false;
+    private float _lastDamageSoundTime = -1f;
     
     /// <summary>
     /// Gets the player's current health
@@ -177,6 +199,14 @@ public class HealthArmourSystem : MonoBehaviour
         // Apply damage to health
         _currentHealth = Mathf.Max(0f, _currentHealth - healthDamage);
         
+        // Play damage sound if health was affected and not on cooldown
+        if (healthDamage > 0 && 
+            (Time.time > _lastDamageSoundTime + _damageSoundCooldown))
+        {
+            PlayDamageSound();
+            _lastDamageSoundTime = Time.time;
+        }
+        
         // Update UI displays
         UpdateHealthDisplay();
         
@@ -206,6 +236,12 @@ public class HealthArmourSystem : MonoBehaviour
         {
             _currentHealth = 0;
             UpdateHealthDisplay(true);  // Force immediate UI update
+        }
+        
+        // Play death sound if this is the player character
+        if (_isPlayerCharacter && !string.IsNullOrEmpty(_deathSoundName))
+        {
+            PlayDeathSound();
         }
         
         // Only proceed with special death sequence if this is the player character
@@ -856,5 +892,85 @@ public class HealthArmourSystem : MonoBehaviour
         // Make the cursor visible and unlock it
         Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;
+    }
+
+    /// <summary>
+    /// Plays damage sound as a child of the player for better spatial audio
+    /// </summary>
+    private void PlayDamageSound()
+    {
+        if (string.IsNullOrEmpty(_damageSoundName)) return;
+
+        SoundManager soundManager = SoundManager.GetInstance();
+        if (soundManager == null || soundManager.GetSoundLibrary() == null) 
+        {
+            Debug.LogWarning("SoundManager or SoundLibrary not available");
+            return;
+        }
+
+        AudioClip clip = soundManager.GetSoundLibrary().GetClipFromName(_damageSoundName);
+        if (clip == null) return;
+
+        // Create the audio source as child of player
+        GameObject audioObj = new GameObject(_damageSoundName + "_Sound");
+        audioObj.transform.SetParent(transform);
+        audioObj.transform.localPosition = Vector3.zero;
+
+        AudioSource audioSource = audioObj.AddComponent<AudioSource>();
+        audioSource.clip = clip;
+        audioSource.volume = 0.8f; // Slightly reduced volume for damage sound
+        audioSource.spatialBlend = 1.0f; // Full 3D sound
+
+        // Set audio mixer group if SoundManager provides it
+        if (soundManager.GetAudioMixerGroup(_audioMixerGroup) != null) 
+        {
+            audioSource.outputAudioMixerGroup = soundManager.GetAudioMixerGroup(_audioMixerGroup);
+        }
+
+        audioSource.Play();
+
+        // Clean up after playing
+        Destroy(audioObj, clip.length + 0.1f);
+    }
+
+    /// <summary>
+    /// Plays death sound as a child of the player for better spatial audio
+    /// </summary>
+    private void PlayDeathSound()
+    {
+        if (string.IsNullOrEmpty(_deathSoundName)) return;
+
+        SoundManager soundManager = SoundManager.GetInstance();
+        if (soundManager == null || soundManager.GetSoundLibrary() == null) 
+        {
+            Debug.LogWarning("SoundManager or SoundLibrary not available");
+            return;
+        }
+
+        AudioClip clip = soundManager.GetSoundLibrary().GetClipFromName(_deathSoundName);
+        if (clip == null) return;
+
+        // Create the audio source as child of player
+        GameObject audioObj = new GameObject(_deathSoundName + "_Sound");
+        audioObj.transform.SetParent(transform);
+        audioObj.transform.localPosition = Vector3.zero;
+
+        AudioSource audioSource = audioObj.AddComponent<AudioSource>();
+        audioSource.clip = clip;
+        audioSource.volume = 1.0f; // Full volume for death sound
+        audioSource.spatialBlend = 1.0f; // Full 3D sound
+        audioSource.priority = 0; // Highest priority to ensure it plays
+
+        // Set audio mixer group if SoundManager provides it
+        if (soundManager.GetAudioMixerGroup(_audioMixerGroup) != null) 
+        {
+            audioSource.outputAudioMixerGroup = soundManager.GetAudioMixerGroup(_audioMixerGroup);
+        }
+
+        audioSource.Play();
+
+        // We don't need to destroy the audio object since the player will be destroyed anyway
+        // But for consistency and to handle cases where the player isn't destroyed:
+        Destroy(audioObj, clip.length + 0.1f);
     }
 }

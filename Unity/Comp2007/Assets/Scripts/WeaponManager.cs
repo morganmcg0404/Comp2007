@@ -62,12 +62,6 @@ public class WeaponManager : MonoBehaviour
     /// </summary>
     [SerializeField] private bool enableScrollWheel = true;
     
-    [Header("Audio")]
-    /// <summary>
-    /// Sound played when switching between weapons
-    /// </summary>
-    [SerializeField] private AudioSource weaponSwitchSound;
-    
     /// <summary>
     /// Enumeration representing the three weapon slots available to the player
     /// </summary>
@@ -299,12 +293,6 @@ public class WeaponManager : MonoBehaviour
     private IEnumerator SwitchWeaponRoutine(WeaponSlot newSlot)
     {
         isSwitchingWeapon = true;
-        
-        // Play switch sound if assigned
-        if (weaponSwitchSound != null)
-        {
-            weaponSwitchSound.Play();
-        }
         
         // Deactivate or reposition current weapon
         DisableCurrentWeapon();

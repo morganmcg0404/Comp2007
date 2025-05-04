@@ -49,26 +49,21 @@ public class ZombieAttack : MonoBehaviour
     /// </summary>
     [SerializeField] private float maxDamageVariation = 1.2f;      // Maximum damage multiplier (120% of base)
     
-    [Header("Visual Feedback")]
+    [Header("Visual and Audio Feedback")]
     /// <summary>
     /// Particle effect played when successfully hitting the player
     /// </summary>
     [SerializeField] private ParticleSystem bloodSplatterEffect;
     
     /// <summary>
-    /// Sound played when initiating an attack
+    /// Sound name for zombie bite attack
     /// </summary>
-    [SerializeField] private AudioSource attackSound;
+    [SerializeField] private string biteSoundName = "ZombieBite";
     
     /// <summary>
-    /// Sound played when attack successfully hits the player
+    /// Audio mixer group for zombie sounds
     /// </summary>
-    [SerializeField] private AudioSource attackHitSound;
-    
-    /// <summary>
-    /// Sound played when attack misses the player
-    /// </summary>
-    [SerializeField] private AudioSource attackMissSound;
+    [SerializeField] private string audioMixerGroup = "SFX";
     
     // Wave-based damage scaling
     /// <summary>
@@ -228,10 +223,8 @@ public class ZombieAttack : MonoBehaviour
             animator.SetTrigger("Attack");
         }
         
-        if (attackSound != null && !attackSound.isPlaying)
-        {
-            attackSound.Play();
-        }
+        // Play zombie bite sound
+        PlayZombieSound(biteSoundName);
         
         // Wait for attack windup with pause support
         float elapsedTime = 0f;
@@ -253,21 +246,11 @@ public class ZombieAttack : MonoBehaviour
             float finalDamage = CalculateDamage();
             playerHealth.TakeDamage(finalDamage);
             
-            // Visual and audio feedback for hit
-            if (attackHitSound != null)
-            {
-                attackHitSound.Play();
-            }
-            
+            // Visual feedback for hit
             if (bloodSplatterEffect != null)
             {
                 bloodSplatterEffect.Play();
             }
-        }
-        else if (attackMissSound != null)
-        {
-            // Player dodged the attack
-            attackMissSound.Play();
         }
         
         // Wait for attack recovery with pause support
@@ -329,6 +312,49 @@ public class ZombieAttack : MonoBehaviour
         damage *= variation;
         
         return Mathf.Round(damage);
+    }
+    
+    /// <summary>
+    /// Plays zombie sounds using SoundManager with mixer support
+    /// </summary>
+    /// <param name="soundName">Name of the sound in SoundLibrary</param>
+    /// <param name="volume">Volume level (default 1.0)</param>
+    private void PlayZombieSound(string soundName, float volume = 1.0f)
+    {
+        if (string.IsNullOrEmpty(soundName)) return;
+    
+        SoundManager soundManager = SoundManager.GetInstance();
+        if (soundManager == null || soundManager.GetSoundLibrary() == null) 
+        {
+            Debug.LogWarning("SoundManager or SoundLibrary not available");
+            return;
+        }
+    
+        AudioClip clip = soundManager.GetSoundLibrary().GetClipFromName(soundName);
+        if (clip == null) return;
+    
+        // Create the audio source as child of zombie
+        GameObject audioObj = new GameObject(soundName + "_Sound");
+        audioObj.transform.SetParent(transform);
+        audioObj.transform.localPosition = Vector3.zero;
+    
+        AudioSource audioSource = audioObj.AddComponent<AudioSource>();
+        audioSource.clip = clip;
+        audioSource.volume = volume;
+        audioSource.spatialBlend = 1.0f; // Full 3D sound
+        audioSource.rolloffMode = AudioRolloffMode.Linear;
+        audioSource.maxDistance = 20f;   // Can be heard from reasonable distance
+    
+        // Set audio mixer group if SoundManager provides it
+        if (soundManager.GetAudioMixerGroup(audioMixerGroup) != null) 
+        {
+            audioSource.outputAudioMixerGroup = soundManager.GetAudioMixerGroup(audioMixerGroup);
+        }
+    
+        audioSource.Play();
+    
+        // Clean up after playing
+        Destroy(audioObj, clip.length + 0.1f);
     }
     
     /// <summary>
