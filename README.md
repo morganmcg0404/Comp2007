@@ -12,7 +12,10 @@ Comp2007 is a wave-based zombie survival first-person shooter (FPS) game. Player
 
 ### Zombies
 - **Scaling Difficulty**: Zombies become stronger, faster, and more numerous as waves progress.
-- **Sprint Mechanics**: Zombies gain a chance to sprint in later waves, with 100% sprinting zombies starting at wave 30.
+- **Zombie Types**: Three movement types with progressive difficulty:
+  - *Walkers*: Default slow zombies present from wave 1
+  - *Joggers*: Begin spawning at wave 5, reaching 100% chance at wave 15
+  - *Sprinters*: Begin spawning at wave 15, reaching 100% chance at wave 45
 - **Health and Damage Scaling**: Zombie health and damage increase with each wave, requiring players to adapt their strategies.
 
 ### Weapons and Combat
@@ -23,7 +26,7 @@ Comp2007 is a wave-based zombie survival first-person shooter (FPS) game. Player
 ### Player Mechanics
 - **Aim Down Sights (ADS)**: Toggle or hold to aim down sights for increased accuracy.
 - **Movement Speed Reduction**: Movement speed is reduced while aiming down sights, adding tactical depth.
-- **Resource Management**: Manage ammo, health, and armor to survive longer.
+- **Resource Management**: Manage ammo, health, and armour to survive longer.
 
 ### User Interface
 - **Wave and Zombie Count Display**: Real-time UI updates show the current wave and remaining zombies.
@@ -104,6 +107,7 @@ Comp2007 is a wave-based zombie survival first-person shooter (FPS) game. Player
 ## Links
 
 - **[Trello Board](https://trello.com/b/zft9nj4d/comp2007-zombie-survival-game)**: Track the project's progress and tasks.
+- **[Itch.io](https://sadnessdotexe.itch.io/comp2007-zombie-survival)**
 
 ---
 
