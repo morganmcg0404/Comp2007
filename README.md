@@ -91,6 +91,16 @@ Comp2007 is a wave-based zombie survival first-person shooter (FPS) game. Player
 
 ---
 
+## Sound Effects Used
+
+- **[Item Pickup](https://pixabay.com/sound-effects/item-pickup-37089/)**
+- **[Player Hurt](https://pixabay.com/sound-effects/oof-sound-effect-147492/)**
+- **[Zombie Hurt](https://pixabay.com/sound-effects/oof-97698/)**
+- **[Zombie Moan](https://pixabay.com/sound-effects/zombie-moan-44932/)**
+- **[Zombie Bite](https://pixabay.com/sound-effects/zombie-bite-96528/)**
+
+---
+
 ## Links
 
 - **[Trello Board](https://trello.com/b/zft9nj4d/comp2007-zombie-survival-game)**: Track the project's progress and tasks.
