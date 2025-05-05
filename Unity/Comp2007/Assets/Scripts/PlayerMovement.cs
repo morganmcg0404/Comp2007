@@ -469,13 +469,13 @@ public class PlayerMovement : MonoBehaviour
         if (z < -0.1f)
         {
             // Moving primarily backward
-            directionModifier = backwardSpeedMultiplier; // Use the inspector value
+            directionModifier = backwardSpeedMultiplier;
         }
         // Check if moving sideways (X input) but not primarily forward
         else if (Mathf.Abs(x) > 0.1f && z < 0.5f)
         {
             // Moving primarily sideways
-            directionModifier = sidewaysSpeedMultiplier; // Use the inspector value
+            directionModifier = sidewaysSpeedMultiplier;
         }
 
         // Store the direction modifier for later reference

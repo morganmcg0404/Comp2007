@@ -16,7 +16,7 @@ public class MouseLook : MonoBehaviour
     /// <summary>
     /// Base rotation speed before sensitivity is applied
     /// </summary>
-    [SerializeField] private float baseLookSpeed = 100.0f;  // Base speed multiplier
+    [SerializeField] private float baseLookSpeed = 100.0f;
     
     /// <summary>
     /// Whether to invert the vertical (Y) mouse axis
@@ -38,7 +38,7 @@ public class MouseLook : MonoBehaviour
     /// <summary>
     /// If true, will ensure FOV always returns to base value when not aiming
     /// </summary>
-    [SerializeField] private bool maintainConstantFOV = false; // Set this to false to prevent forcing FOV
+    [SerializeField] private bool maintainConstantFOV = false;
     
     [Header("References")]
     /// <summary>
